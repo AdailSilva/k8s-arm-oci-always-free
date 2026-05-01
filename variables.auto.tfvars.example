@@ -1,0 +1,30 @@
+# OCI API configuration
+tenancy_ocid         = "ocid1.tenancy.oc1.."
+user_ocid            = "ocid1.user.oc1.."
+fingerprint          = "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"
+private_key_path     = "/home/your_user/.oci/oci_api_key.pem"
+#private_key_path     = "C:\\Users\\...\\.oci\\oci-tf.pem"
+#private_key_password = ""
+region               = "sa-saopaulo-1"
+
+# SSH keys - Used to access generated instances --> ssh-keygen -o -a 100 -t ed25519 -f ~/.ssh/id_ed25519 -C "your_email@your_domain".
+ssh_key_path     = "/home/your_user/.ssh/id_ed25519" 
+ssh_key_pub_path = "/home/your_user/.ssh/id_ed25519.pub"
+#ssh_key_path     = "C:\\Users\\...\\.ssh\\id_ed25519"
+#ssh_key_pub_path = "C:\\Users\\...\\.ssh\\id_ed25519.pub"
+
+# Optional, DNS name may be configured later.
+# Changes lead to k8s cluster recreation (instances are preserved).
+cluster_public_dns_name = "k8s.adailsilva.com.br" # (your_domain)
+
+# Is used to configure LetsEncrypt certificates issuer
+letsencrypt_registration_email = "your_email@your_domain"
+
+# Whether to create cluster admin (and output his token)
+# to access dashboard right after cluster creation.
+debug_create_cluster_admin = true
+
+# Whether existing local kube config --> Windows: %USERPROFILE%\.kube\config | Linux: ~/.kube/config
+# should be overwritten with the one from the newly created cluster.
+linux_overwrite_local_kube_config = true # (Choose according to your operating system)
+#windows_overwrite_local_kube_config = false

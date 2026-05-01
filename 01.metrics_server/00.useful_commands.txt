@@ -1,0 +1,22 @@
+# Useful Commands:
+
+chmod +x 01.deploy_metrics_server_script.sh
+bash 01.deploy_metrics_server_script.sh
+
+chmod +x 02.destroy_metrics_server_script.sh
+bash 02.destroy_metrics_server_script.sh
+
+
+
+# Port Forward
+
+## Context - Example:
+
+# Port Forward
+
+## Context - Example:
+
+Pod: metrics-server-deployment-544dcd4c48-7vvtq
+Service: metrics-server-service
+Namespace: kube-system
+

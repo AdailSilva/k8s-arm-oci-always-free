@@ -1,0 +1,27 @@
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx-deployment
+  namespace: oci-devops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-deployment
+  template:
+    metadata:
+      labels:
+        app: nginx-deployment
+    spec:
+      containers:
+        - name: nginx
+          image: gru.ocir.io/griszz3l82u1/homepage-80_platform_linux-arm64:latest
+          ports:
+            - containerPort: 80
+      imagePullSecrets:
+      - name: oci-registry-secret

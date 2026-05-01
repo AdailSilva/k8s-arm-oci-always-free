@@ -1,0 +1,17 @@
+
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: oci-devops
+  annotations:
+    field.cattle.io/containerDefaultResourceLimit: '{}'
+#    key: string
+  labels:
+    {}
+#    key: string
+#  namespace: string
+spec:
+#  finalizers:
+#    - string

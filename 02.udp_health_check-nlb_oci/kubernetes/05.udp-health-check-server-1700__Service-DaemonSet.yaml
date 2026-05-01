@@ -1,0 +1,22 @@
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: udp-1700-app-service
+  namespace: oci-devops
+  labels:
+    app: udp-1700-app-service
+spec:
+  selector:
+    app: udp-app-with-healthcheck-1700-daemon-set
+  # clusterIP: "None"
+  type: ClusterIP
+  ports:
+    - name: "1700-to-1700"
+      protocol: UDP
+      port: 1700
+      targetPort: 1700
+
+# O NLB da OCI irá encaminhar UDP na porta 1700 para o NodePort 30700 nos nodes.

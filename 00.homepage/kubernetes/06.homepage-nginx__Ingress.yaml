@@ -1,0 +1,33 @@
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  namespace: oci-devops
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    ingress.kubernetes.io/ssl-passthrough: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1 # /$1 # /$2
+  labels:
+    app: nginx-ingress
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - k8s.adailsilva.com.br
+      secretName: nginx-tls
+  rules:
+    - host: k8s.adailsilva.com.br
+      http:
+        paths:
+          - path: /(.*) # /?(.*) # /k8s(/|$)(.*)
+            pathType: ImplementationSpecific # ImplementationSpecific # Exact # Prefix
+            backend:
+              service:
+                name: nginx-service
+                port:
+                  number: 80

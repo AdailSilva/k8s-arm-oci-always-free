@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>k8s.adailsilva.com.br</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --black:   #02040a;
+  --dark:    #060c18;
+  --panel:   #080f1e;
+  --border:  #0d1f3c;
+  --cyan:    #00e5ff;
+  --cyan2:   #00b8d9;
+  --green:   #00ff87;
+  --orange:  #ff6d00;
+  --red:     #ff1744;
+  --yellow:  #ffd600;
+  --text:    #b0c4de;
+  --dim:     #3a5068;
+  --mono:    'Share Tech Mono', monospace;
+  --sans:    'Barlow', sans-serif;
+  --cond:    'Barlow Condensed', sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--black);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  overflow-x: hidden;
+  cursor: crosshair;
+}
+
+/* ═══════════════════════════════════════
+   SCAN LINE OVERLAY
+══════════════════════════════════════ */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ═══════════════════════════════════════
+   ANIMATED GRID BACKGROUND
+══════════════════════════════════════ */
+#grid-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* ═══════════════════════════════════════
+   LAYOUT
+══════════════════════════════════════ */
+.page {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+/* ═══════════════════════════════════════
+   TOP BAR
+══════════════════════════════════════ */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 32px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(6,12,24,0.9);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.k8s-logo {
+  width: 32px; height: 32px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.k8s-logo svg {
+  width: 100%; height: 100%;
+  animation: logoSpin 20s linear infinite;
+}
+
+@keyframes logoSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.brand {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--cyan);
+  letter-spacing: 0.05em;
+}
+.brand span { color: var(--dim); }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.status-dot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot.green  { background: var(--green);  box-shadow: 0 0 8px var(--green);  animation: blink 2s ease-in-out infinite; }
+.dot.cyan   { background: var(--cyan);   box-shadow: 0 0 8px var(--cyan);   animation: blink 2.4s ease-in-out infinite; }
+.dot.orange { background: var(--orange); box-shadow: 0 0 8px var(--orange); animation: blink 1.8s ease-in-out infinite; }
+
+@keyframes blink {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+#clock {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cyan);
+  letter-spacing: 0.1em;
+}
+
+/* ═══════════════════════════════════════
+   HERO
+══════════════════════════════════════ */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 32px 40px;
+  text-align: center;
+  position: relative;
+}
+
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--cyan);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  opacity: 0;
+  animation: fadeUp 0.6s ease forwards 0.2s;
+}
+
+.hero-title {
+  font-family: var(--cond);
+  font-size: clamp(52px, 10vw, 110px);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin-bottom: 8px;
+  opacity: 0;
+  animation: fadeUp 0.7s ease forwards 0.4s;
+}
+
+.hero-title .glow {
+  color: var(--cyan);
+  text-shadow:
+    0 0 20px rgba(0,229,255,0.6),
+    0 0 60px rgba(0,229,255,0.3),
+    0 0 100px rgba(0,229,255,0.15);
+}
+
+.hero-title .line2 {
+  display: block;
+  color: var(--dim);
+  font-size: 0.45em;
+  letter-spacing: 0.1em;
+  margin-top: 8px;
+}
+
+.hero-sub {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--dim);
+  margin-top: 20px;
+  letter-spacing: 0.05em;
+  opacity: 0;
+  animation: fadeUp 0.7s ease forwards 0.6s;
+}
+
+.hero-sub em { color: var(--cyan2); font-style: normal; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════════════════════════════════
+   CLUSTER VISUALIZATION
+══════════════════════════════════════ */
+.cluster-vis {
+  width: 100%;
+  max-width: 700px;
+  margin: 40px auto 0;
+  opacity: 0;
+  animation: fadeUp 0.8s ease forwards 0.8s;
+}
+
+#cluster-canvas {
+  width: 100%;
+  height: 260px;
+  display: block;
+}
+
+/* ═══════════════════════════════════════
+   METRICS STRIP
+══════════════════════════════════════ */
+.metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-top: 60px;
+}
+
+.metric {
+  background: var(--panel);
+  padding: 20px 24px;
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  animation: fadeUp 0.6s ease forwards;
+}
+
+.metric::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent-color, var(--cyan));
+}
+
+.metric:nth-child(1) { --accent-color: var(--cyan);   animation-delay: 1.0s; }
+.metric:nth-child(2) { --accent-color: var(--green);  animation-delay: 1.1s; }
+.metric:nth-child(3) { --accent-color: var(--orange); animation-delay: 1.2s; }
+.metric:nth-child(4) { --accent-color: var(--yellow); animation-delay: 1.3s; }
+
+.metric-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  font-family: var(--cond);
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--accent-color, var(--cyan));
+  line-height: 1;
+  text-shadow: 0 0 20px currentColor;
+}
+
+.metric-unit {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════
+   MAIN CONTENT
+══════════════════════════════════════ */
+.content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 60px 32px;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 32px;
+  align-items: start;
+}
+
+/* ═══════════════════════════════════════
+   TERMINAL PANEL
+══════════════════════════════════════ */
+.terminal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  opacity: 0;
+  animation: fadeUp 0.7s ease forwards 1.4s;
+}
+
+.terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(0,0,0,0.4);
+  border-bottom: 1px solid var(--border);
+}
+
+.terminal-btn {
+  width: 11px; height: 11px;
+  border-radius: 50%;
+}
+.terminal-btn.r { background: #ff5f57; }
+.terminal-btn.y { background: #ffbd2e; }
+.terminal-btn.g { background: #28c941; }
+
+.terminal-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  margin-left: 4px;
+  flex: 1;
+  text-align: center;
+}
+
+.terminal-body {
+  padding: 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.9;
+  min-height: 300px;
+}
+
+.t-line { display: flex; gap: 10px; align-items: baseline; }
+.t-prompt { color: var(--cyan); flex-shrink: 0; }
+.t-cmd    { color: #fff; }
+.t-out    { color: var(--dim); padding-left: 20px; display: block; }
+.t-ok     { color: var(--green); }
+.t-warn   { color: var(--yellow); }
+.t-err    { color: var(--red); }
+.t-hi     { color: var(--cyan); }
+.t-blank  { height: 8px; display: block; }
+
+.cursor {
+  display: inline-block;
+  width: 8px; height: 14px;
+  background: var(--cyan);
+  vertical-align: middle;
+  animation: cursorBlink 1s step-end infinite;
+  box-shadow: 0 0 8px var(--cyan);
+}
+
+@keyframes cursorBlink {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+/* ═══════════════════════════════════════
+   NODE CARDS
+══════════════════════════════════════ */
+.nodes-section { }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.section-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  border: 1px solid rgba(0,229,255,0.3);
+  padding: 3px 10px;
+  border-radius: 2px;
+}
+
+.section-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.node-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.node-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+  cursor: default;
+}
+
+.node-card:hover {
+  border-color: rgba(0,229,255,0.4);
+  transform: translateY(-2px);
+}
+
+.node-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.node-card:hover::after { opacity: 0.6; }
+
+.node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.node-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #fff;
+}
+
+.node-role {
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  letter-spacing: 0.1em;
+}
+.node-role.control { background: rgba(0,229,255,0.1); color: var(--cyan); border: 1px solid rgba(0,229,255,0.2); }
+.node-role.worker  { background: rgba(0,255,135,0.1); color: var(--green); border: 1px solid rgba(0,255,135,0.2); }
+
+.node-stat {
+  margin-bottom: 6px;
+}
+
+.node-stat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+  margin-bottom: 3px;
+  letter-spacing: 0.1em;
+}
+
+.bar-track {
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bar-fill.cpu  { background: linear-gradient(90deg, var(--cyan), var(--cyan2)); box-shadow: 0 0 6px var(--cyan); }
+.bar-fill.mem  { background: linear-gradient(90deg, var(--green), #00c853);     box-shadow: 0 0 6px var(--green); }
+.bar-fill.disk { background: linear-gradient(90deg, var(--orange), #ff9100);    box-shadow: 0 0 6px var(--orange); }
+
+.bar-val {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+  float: right;
+  margin-bottom: 2px;
+}
+
+/* ═══════════════════════════════════════
+   PODS TABLE
+══════════════════════════════════════ */
+.pods-table {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: fadeUp 0.7s ease forwards 1.6s;
+}
+
+.pods-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pods-table th {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--dim);
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.2);
+}
+
+.pods-table td {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 9px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  vertical-align: middle;
+}
+
+.pods-table tr:last-child td { border-bottom: none; }
+.pods-table tr:hover td { background: rgba(0,229,255,0.03); }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.pill.running  { background: rgba(0,255,135,0.1); color: var(--green);  border: 1px solid rgba(0,255,135,0.2); }
+.pill.pending  { background: rgba(255,214,0,0.1); color: var(--yellow); border: 1px solid rgba(255,214,0,0.2); }
+.pill.error    { background: rgba(255,23,68,0.1);  color: var(--red);    border: 1px solid rgba(255,23,68,0.2); }
+
+.pill::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: blink 2s infinite;
+}
+
+/* ═══════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════ */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  opacity: 0;
+  animation: fadeUp 0.7s ease forwards 1.8s;
+}
+
+.info-block {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.info-block-header {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  background: rgba(0,229,255,0.03);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-block-header::before {
+  content: '//';
+  color: var(--dim);
+}
+
+.info-rows { padding: 12px 0; }
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 16px;
+  gap: 12px;
+}
+
+.info-row:hover { background: rgba(255,255,255,0.02); }
+
+.ir-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+  flex-shrink: 0;
+}
+
+.ir-val {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #fff;
+  text-align: right;
+}
+
+.ir-val.cyan   { color: var(--cyan); }
+.ir-val.green  { color: var(--green); }
+.ir-val.orange { color: var(--orange); }
+
+/* uptime counter */
+#uptime-val { font-variant-numeric: tabular-nums; }
+
+/* ═══════════════════════════════════════
+   FOOTER
+══════════════════════════════════════ */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(6,12,24,0.9);
+  backdrop-filter: blur(12px);
+}
+
+.footer-left {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.footer-left em { color: var(--cyan); font-style: normal; }
+
+.footer-right {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-tag .dot { width: 5px; height: 5px; }
+
+/* ═══════════════════════════════════════
+   GLITCH EFFECT on title
+══════════════════════════════════════ */
+.glitch {
+  position: relative;
+}
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+}
+.glitch::before {
+  color: var(--red);
+  animation: glitch1 4s infinite;
+  clip-path: polygon(0 30%, 100% 30%, 100% 50%, 0 50%);
+  transform: translate(-2px, 0);
+  opacity: 0.7;
+}
+.glitch::after {
+  color: var(--cyan2);
+  animation: glitch2 4s infinite;
+  clip-path: polygon(0 60%, 100% 60%, 100% 80%, 0 80%);
+  transform: translate(2px, 0);
+  opacity: 0.7;
+}
+
+@keyframes glitch1 {
+  0%,90%,100% { transform: translate(0); opacity: 0; }
+  92%          { transform: translate(-3px, 1px); opacity: 0.7; }
+  94%          { transform: translate(2px, -1px); opacity: 0.5; }
+  96%          { transform: translate(-1px, 2px); opacity: 0.7; }
+}
+@keyframes glitch2 {
+  0%,90%,100% { transform: translate(0); opacity: 0; }
+  93%          { transform: translate(3px, -1px); opacity: 0.7; }
+  95%          { transform: translate(-2px, 1px); opacity: 0.5; }
+  97%          { transform: translate(1px, -2px); opacity: 0.7; }
+}
+
+/* ═══════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════ */
+@media (max-width: 768px) {
+  .metrics-strip { grid-template-columns: repeat(2,1fr); }
+  .content { grid-template-columns: 1fr; }
+  .node-grid { grid-template-columns: 1fr; }
+  .topbar-right .status-dot:not(:last-child) { display: none; }
+  .hero-title { font-size: clamp(42px, 14vw, 80px); }
+}
+</style>
+</head>
+<body>
+
+<canvas id="grid-canvas"></canvas>
+
+<div class="page">
+
+  <!-- ── TOP BAR ── -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="k8s-logo">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="50,5 93,27.5 93,72.5 50,95 7,72.5 7,27.5" stroke="#00e5ff" stroke-width="3" fill="none" opacity="0.4"/>
+          <polygon points="50,18 80,34 80,66 50,82 20,66 20,34" stroke="#00e5ff" stroke-width="2" fill="none" opacity="0.6"/>
+          <circle cx="50" cy="50" r="8" fill="#00e5ff" opacity="0.9"/>
+          <line x1="50" y1="5"  x2="50" y2="20" stroke="#00e5ff" stroke-width="2" opacity="0.5"/>
+          <line x1="93" y1="27.5" x2="80" y2="34" stroke="#00e5ff" stroke-width="2" opacity="0.5"/>
+          <line x1="93" y1="72.5" x2="80" y2="66" stroke="#00e5ff" stroke-width="2" opacity="0.5"/>
+          <line x1="50" y1="95" x2="50" y2="80" stroke="#00e5ff" stroke-width="2" opacity="0.5"/>
+          <line x1="7" y1="72.5" x2="20" y2="66" stroke="#00e5ff" stroke-width="2" opacity="0.5"/>
+          <line x1="7" y1="27.5" x2="20" y2="34" stroke="#00e5ff" stroke-width="2" opacity="0.5"/>
+        </svg>
+      </div>
+      <div class="brand">k8s<span>.</span>adailsilva<span>.</span>com<span>.</span>br</div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-dot"><div class="dot green"></div>CLUSTER ONLINE</div>
+      <div class="status-dot"><div class="dot cyan"></div>4 NODES</div>
+      <div class="status-dot"><div class="dot orange"></div>OCI · ARM64</div>
+      <div id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- ── HERO ── -->
+  <main>
+    <section class="hero">
+      <div class="hero-eyebrow">Oracle Cloud Infrastructure · Kubernetes Engine</div>
+      <h1 class="hero-title">
+        <span class="glitch" data-text="ADAIL">ADAIL</span>
+        <span class="glow"> SILVA</span>
+        <span class="line2">KUBERNETES CLUSTER</span>
+      </h1>
+      <p class="hero-sub">
+        <em>oci-devops</em> namespace &nbsp;·&nbsp; <em>nginx ingress</em> &nbsp;·&nbsp; <em>cert-manager</em> &nbsp;·&nbsp; <em>letsencrypt</em>
+      </p>
+
+      <!-- Cluster network visualization -->
+      <div class="cluster-vis">
+        <canvas id="cluster-canvas"></canvas>
+      </div>
+    </section>
+
+    <!-- ── METRICS STRIP ── -->
+    <div class="metrics-strip">
+      <div class="metric">
+        <div class="metric-label">Nodes</div>
+        <div class="metric-value" id="m-nodes">4</div>
+        <div class="metric-unit">Ready / Total</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Pods Running</div>
+        <div class="metric-value" id="m-pods">9</div>
+        <div class="metric-unit">Across namespaces</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">CPU Cores</div>
+        <div class="metric-value" id="m-cpu">12</div>
+        <div class="metric-unit">ARM64 vCPU</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Memory</div>
+        <div class="metric-value" id="m-mem">72</div>
+        <div class="metric-unit">GB Total</div>
+      </div>
+    </div>
+
+    <!-- ── MAIN CONTENT ── -->
+    <div class="content">
+
+      <!-- LEFT COLUMN -->
+      <div>
+        <!-- Terminal -->
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="terminal-btn r"></div>
+            <div class="terminal-btn y"></div>
+            <div class="terminal-btn g"></div>
+            <div class="terminal-title">adailsilva@k8s-master — kubectl</div>
+          </div>
+          <div class="terminal-body" id="terminal-body">
+          </div>
+        </div>
+
+        <br/>
+
+        <!-- Nodes -->
+        <div>
+          <div class="section-header">
+            <div class="section-tag">Nodes</div>
+            <div class="section-line"></div>
+          </div>
+
+          <div class="node-grid" id="node-grid">
+            <!-- injected by JS -->
+          </div>
+        </div>
+
+        <!-- Pods table -->
+        <div class="section-header">
+          <div class="section-tag">Pods · oci-devops</div>
+          <div class="section-line"></div>
+        </div>
+
+        <div class="pods-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Image</th>
+                <th>Status</th>
+                <th>Restarts</th>
+                <th>Age</th>
+              </tr>
+            </thead>
+            <tbody id="pods-tbody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+
+        <div class="info-block">
+          <div class="info-block-header">Cluster Info</div>
+          <div class="info-rows">
+            <div class="info-row"><span class="ir-key">Provider</span><span class="ir-val cyan">Oracle Cloud</span></div>
+            <div class="info-row"><span class="ir-key">Region</span><span class="ir-val">sa-saopaulo-1</span></div>
+            <div class="info-row"><span class="ir-key">Kubernetes</span><span class="ir-val green">v1.29.1</span></div>
+            <div class="info-row"><span class="ir-key">Runtime</span><span class="ir-val">containerd</span></div>
+            <div class="info-row"><span class="ir-key">Arch</span><span class="ir-val orange">linux/arm64</span></div>
+            <div class="info-row"><span class="ir-key">CNI</span><span class="ir-val">Flannel</span></div>
+            <div class="info-row"><span class="ir-key">Ingress</span><span class="ir-val cyan">nginx</span></div>
+            <div class="info-row"><span class="ir-key">TLS</span><span class="ir-val green">Let's Encrypt</span></div>
+            <div class="info-row"><span class="ir-key">Registry</span><span class="ir-val">OCI OCIR</span></div>
+            <div class="info-row"><span class="ir-key">Uptime</span><span class="ir-val green" id="uptime-val">--:--:--</span></div>
+          </div>
+        </div>
+
+        <div class="info-block">
+          <div class="info-block-header">Namespaces</div>
+          <div class="info-rows">
+            <div class="info-row"><span class="ir-key">oci-devops</span><span class="pill running">running</span></div>
+            <div class="info-row"><span class="ir-key">ingress-nginx</span><span class="pill running">running</span></div>
+            <div class="info-row"><span class="ir-key">cert-manager</span><span class="pill running">running</span></div>
+            <div class="info-row"><span class="ir-key">kube-system</span><span class="pill running">running</span></div>
+            <div class="info-row"><span class="ir-key">monitoring</span><span class="pill pending">pending</span></div>
+          </div>
+        </div>
+
+        <div class="info-block">
+          <div class="info-block-header">Ingress Routes</div>
+          <div class="info-rows">
+            <div class="info-row"><span class="ir-key">k8s.adailsilva.com.br</span><span class="ir-val green">✓ TLS</span></div>
+            <div class="info-row" style="padding-top:2px;padding-bottom:2px;">
+              <span class="ir-key" style="font-size:9px;color:var(--dim)">→ nginx-service:80</span>
+              <span class="ir-val" style="font-size:9px">ClusterIP</span>
+            </div>
+            <div class="info-row" style="padding-top:8px;">
+              <span class="ir-key">cert-manager</span>
+              <span class="pill running">issued</span>
+            </div>
+            <div class="info-row">
+              <span class="ir-key">letsencrypt-prod</span>
+              <span class="ir-val green">valid</span>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+  </main>
+
+  <!-- ── FOOTER ── -->
+  <footer>
+    <div class="footer-left">
+      &copy; <em>Adail Silva</em> &nbsp;·&nbsp; k8s.adailsilva.com.br &nbsp;·&nbsp; Kubernetes Cluster
+    </div>
+    <div class="footer-right">
+      <div class="footer-tag"><div class="dot green"></div>All Systems Operational</div>
+      <div class="footer-tag"><div class="dot cyan"></div>nginx ingress</div>
+      <div class="footer-tag"><div class="dot orange"></div>OCI ARM64</div>
+    </div>
+  </footer>
+
+</div><!-- /page -->
+
+<script>
+// ════════════════════════════════════
+// CLOCK
+// ════════════════════════════════════
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('pt-BR', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ════════════════════════════════════
+// UPTIME COUNTER
+// ════════════════════════════════════
+const startTime = Date.now() - (3 * 24 * 60 * 60 * 1000 + 7 * 60 * 60 * 1000 + 42 * 60 * 1000);
+function updateUptime() {
+  const diff = Date.now() - startTime;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  document.getElementById('uptime-val').textContent =
+    `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+setInterval(updateUptime, 1000);
+updateUptime();
+
+// ════════════════════════════════════
+// ANIMATED GRID BACKGROUND
+// ════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('grid-canvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const COLS = 40, ROWS = 25;
+
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+    const cw = W / COLS, rh = H / ROWS;
+
+    ctx.strokeStyle = 'rgba(0,229,255,0.07)';
+    ctx.lineWidth = 0.5;
+
+    for (let c = 0; c <= COLS; c++) {
+      const x = c * cw;
+      ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 0.001 + c * 0.3);
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let r = 0; r <= ROWS; r++) {
+      const y = r * rh;
+      ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 0.0008 + r * 0.4);
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+
+    // glowing dots at intersections (random)
+    ctx.globalAlpha = 1;
+    const seed = Math.floor(t / 2000);
+    for (let i = 0; i < 8; i++) {
+      const c = Math.floor(pseudoRand(seed + i * 7)  * COLS);
+      const r = Math.floor(pseudoRand(seed + i * 13) * ROWS);
+      const x = c * cw, y = r * rh;
+      const a = 0.4 + 0.6 * Math.sin(t * 0.003 + i);
+      ctx.fillStyle = `rgba(0,229,255,${a * 0.6})`;
+      ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+
+  function pseudoRand(n) {
+    n = (n << 13) ^ n;
+    return ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 0x7fffffff;
+  }
+
+  requestAnimationFrame(draw);
+})();
+
+// ════════════════════════════════════
+// CLUSTER NETWORK CANVAS
+// ════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('cluster-canvas');
+  const ctx    = canvas.getContext('2d');
+  const DPR    = window.devicePixelRatio || 1;
+
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width  = rect.width  * DPR;
+    canvas.height = 260 * DPR;
+    canvas.style.width  = rect.width  + 'px';
+    canvas.style.height = '260px';
+    ctx.scale(DPR, DPR);
+  }
+  resize();
+
+  const W = () => canvas.width  / DPR;
+  const H = () => canvas.height / DPR;
+
+  // Nodes
+  const nodes = [
+    { label: 'master-01', role: 'control-plane', color: '#00e5ff', x: 0.5,  y: 0.22, r: 22, pods: 4 },
+    { label: 'worker-01', role: 'worker',         color: '#00ff87', x: 0.18, y: 0.72, r: 16, pods: 3 },
+    { label: 'worker-02', role: 'worker',         color: '#00ff87', x: 0.82, y: 0.72, r: 16, pods: 2 },
+    { label: 'worker-03', role: 'worker',         color: '#00ff87', x: 0.5,  y: 0.88, r: 16, pods: 3 },
+  ];
+
+  // Services (small satellites around master)
+  const services = [
+    { label: 'nginx',        color: '#ff6d00', angle: -60,  dist: 90 },
+    { label: 'cert-mgr',     color: '#ffd600', angle: 0,    dist: 90 },
+    { label: 'kube-dns',     color: '#b388ff', angle: 60,   dist: 90 },
+  ];
+
+  let t = 0;
+  const packets = [];
+
+  function spawnPacket() {
+    if (Math.random() > 0.03) return;
+    const from = nodes[Math.floor(Math.random() * nodes.length)];
+    const to   = nodes[Math.floor(Math.random() * nodes.length)];
+    if (from === to) return;
+    packets.push({ from, to, progress: 0, speed: 0.008 + Math.random() * 0.01, color: from.color });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W(), H());
+    t += 0.016;
+
+    const cw = W(), ch = H();
+
+    // Compute positions
+    nodes.forEach(n => { n.px = n.x * cw; n.py = n.y * ch; });
+
+    // Edges
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        const grad = ctx.createLinearGradient(a.px, a.py, b.px, b.py);
+        grad.addColorStop(0, a.color + '40');
+        grad.addColorStop(1, b.color + '40');
+        ctx.strokeStyle = grad;
+        ctx.lineWidth   = 1;
+        ctx.setLineDash([4, 8]);
+        ctx.lineDashOffset = -t * 20;
+        ctx.beginPath();
+        ctx.moveTo(a.px, a.py);
+        ctx.lineTo(b.px, b.py);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    // Service satellites (orbit master)
+    const master = nodes[0];
+    services.forEach((s, i) => {
+      const ang = (s.angle * Math.PI / 180) + t * 0.15 * (i % 2 === 0 ? 1 : -1);
+      s.px = master.px + Math.cos(ang) * s.dist;
+      s.py = master.py + Math.sin(ang) * s.dist;
+
+      // Line to master
+      ctx.strokeStyle = s.color + '30';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(master.px, master.py);
+      ctx.lineTo(s.px, s.py);
+      ctx.stroke();
+
+      // Circle
+      ctx.fillStyle = s.color + '18';
+      ctx.strokeStyle = s.color + '60';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(s.px, s.py, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Label
+      ctx.fillStyle = s.color;
+      ctx.font = `9px 'Share Tech Mono', monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.label, s.px, s.py);
+    });
+
+    // Packets
+    spawnPacket();
+    packets.forEach((p, idx) => {
+      p.progress += p.speed;
+      if (p.progress >= 1) { packets.splice(idx, 1); return; }
+      const x = p.from.px + (p.to.px - p.from.px) * p.progress;
+      const y = p.from.py + (p.to.py - p.from.py) * p.progress;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur  = 8;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+
+    // Nodes
+    nodes.forEach(n => {
+      const pulse = 1 + 0.08 * Math.sin(t * 2 + n.x * 10);
+
+      // Glow ring
+      const grad = ctx.createRadialGradient(n.px, n.py, n.r * 0.5, n.px, n.py, n.r * 2.5 * pulse);
+      grad.addColorStop(0, n.color + '25');
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(n.px, n.py, n.r * 2.5 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Main circle
+      ctx.fillStyle = '#060c18';
+      ctx.strokeStyle = n.color;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = n.color;
+      ctx.shadowBlur  = 12;
+      ctx.beginPath();
+      ctx.arc(n.px, n.py, n.r * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Pod dots inside
+      for (let p = 0; p < n.pods; p++) {
+        const ang = (p / n.pods) * Math.PI * 2 + t;
+        const dx  = Math.cos(ang) * (n.r * 0.55);
+        const dy  = Math.sin(ang) * (n.r * 0.55);
+        ctx.fillStyle = n.color + 'cc';
+        ctx.beginPath();
+        ctx.arc(n.px + dx, n.py + dy, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Label
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold 10px 'Share Tech Mono', monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(n.label, n.px, n.py + n.r * pulse + 6);
+
+      ctx.fillStyle = n.color + 'aa';
+      ctx.font = `9px 'Share Tech Mono', monospace`;
+      ctx.fillText(n.role, n.px, n.py + n.r * pulse + 18);
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  draw();
+})();
+
+// ════════════════════════════════════
+// TERMINAL TYPEWRITER
+// ════════════════════════════════════
+(function() {
+  const lines = [
+    { type: 'cmd',  text: 'kubectl get nodes -o wide' },
+    { type: 'out',  text: '<span class="t-hi">NAME</span>         STATUS   ROLES           AGE   VERSION' },
+    { type: 'out',  text: '<span class="t-ok">master-01</span>   Ready    control-plane   3d    v1.29.1' },
+    { type: 'out',  text: '<span class="t-ok">worker-01</span>   Ready    worker          3d    v1.29.1' },
+    { type: 'out',  text: '<span class="t-ok">worker-02</span>   Ready    worker          3d    v1.29.1' },
+    { type: 'out',  text: '<span class="t-ok">worker-03</span>   Ready    worker          3d    v1.29.1' },
+    { type: 'blank' },
+    { type: 'cmd',  text: 'kubectl get pods -n oci-devops' },
+    { type: 'out',  text: '<span class="t-hi">NAME</span>                              READY   STATUS    RESTARTS' },
+    { type: 'out',  text: '<span class="t-ok">nginx-deployment-59dd79bdb9-b72t6</span>  1/1   Running   0' },
+    { type: 'out',  text: '<span class="t-ok">udp-app-daemon-set-htx8d</span>           1/1   Running   0' },
+    { type: 'out',  text: '<span class="t-ok">udp-app-daemon-set-kmqkp</span>           1/1   Running   0' },
+    { type: 'blank' },
+    { type: 'cmd',  text: 'kubectl get ingress -n oci-devops' },
+    { type: 'out',  text: '<span class="t-hi">NAME</span>           CLASS   HOSTS                    ADDRESS       TLS' },
+    { type: 'out',  text: '<span class="t-ok">nginx-ingress</span>  nginx   k8s.adailsilva.com.br   <ip>  True' },
+  ];
+
+  const body    = document.getElementById('terminal-body');
+  let lineIdx   = 0;
+  let charIdx   = 0;
+  let isTyping  = false;
+
+  function renderLine(line) {
+    const el = document.createElement(line.type === 'blank' ? 'span' : 'div');
+    el.className = line.type === 'blank' ? 't-blank' : (line.type === 'cmd' ? 't-line' : '');
+    if (line.type === 'cmd') {
+      const prompt = document.createElement('span');
+      prompt.className = 't-prompt';
+      prompt.textContent = '❯';
+      const cmd = document.createElement('span');
+      cmd.className = 't-cmd';
+      cmd.textContent = '';
+      el.appendChild(prompt);
+      el.appendChild(cmd);
+    } else if (line.type === 'out') {
+      el.className = 't-out';
+      el.innerHTML = '';
+    }
+    body.appendChild(el);
+    return el;
+  }
+
+  function typeNext() {
+    if (lineIdx >= lines.length) {
+      // Add blinking cursor at end
+      const cur = document.createElement('span');
+      cur.className = 'cursor';
+      body.appendChild(cur);
+      return;
+    }
+    const line = lines[lineIdx];
+
+    if (line.type === 'blank') {
+      renderLine(line);
+      lineIdx++; charIdx = 0;
+      setTimeout(typeNext, 80);
+      return;
+    }
+
+    if (line.type === 'out') {
+      const el = renderLine(line);
+      el.innerHTML = line.text;
+      lineIdx++; charIdx = 0;
+      setTimeout(typeNext, 50);
+      return;
+    }
+
+    if (line.type === 'cmd') {
+      if (!isTyping) {
+        isTyping = true;
+        renderLine(line);
+      }
+      const el = body.lastChild;
+      const cmdSpan = el.querySelector('.t-cmd');
+      if (charIdx < line.text.length) {
+        cmdSpan.textContent += line.text[charIdx];
+        charIdx++;
+        setTimeout(typeNext, 35 + Math.random() * 40);
+      } else {
+        isTyping = false;
+        lineIdx++; charIdx = 0;
+        setTimeout(typeNext, 200);
+      }
+    }
+  }
+
+  // Start after page load animation
+  setTimeout(typeNext, 1800);
+})();
+
+// ════════════════════════════════════
+// NODE CARDS
+// ════════════════════════════════════
+(function() {
+  const nodesData = [
+    { name: 'master-01', role: 'control-plane', cpu: 68, mem: 74, disk: 45 },
+    { name: 'worker-01', role: 'worker',         cpu: 42, mem: 58, disk: 33 },
+    { name: 'worker-02', role: 'worker',         cpu: 55, mem: 62, disk: 38 },
+    { name: 'worker-03', role: 'worker',         cpu: 37, mem: 51, disk: 29 },
+  ];
+
+  const grid = document.getElementById('node-grid');
+
+  nodesData.forEach((n, i) => {
+    const card = document.createElement('div');
+    card.className = 'node-card';
+    card.style.opacity = '0';
+    card.style.animation = `fadeUp 0.6s ease forwards ${1.4 + i * 0.15}s`;
+    card.innerHTML = `
+      <div class="node-header">
+        <span class="node-name">${n.name}</span>
+        <span class="node-role ${n.role === 'control-plane' ? 'control' : 'worker'}">${n.role}</span>
+      </div>
+      <div class="node-stat">
+        <div style="display:flex;justify-content:space-between">
+          <div class="node-stat-label">CPU</div>
+          <div class="bar-val">${n.cpu}%</div>
+        </div>
+        <div class="bar-track"><div class="bar-fill cpu" style="width:0%" data-w="${n.cpu}%"></div></div>
+      </div>
+      <div class="node-stat">
+        <div style="display:flex;justify-content:space-between">
+          <div class="node-stat-label">MEM</div>
+          <div class="bar-val">${n.mem}%</div>
+        </div>
+        <div class="bar-track"><div class="bar-fill mem" style="width:0%" data-w="${n.mem}%"></div></div>
+      </div>
+      <div class="node-stat">
+        <div style="display:flex;justify-content:space-between">
+          <div class="node-stat-label">DISK</div>
+          <div class="bar-val">${n.disk}%</div>
+        </div>
+        <div class="bar-track"><div class="bar-fill disk" style="width:0%" data-w="${n.disk}%"></div></div>
+      </div>`;
+    grid.appendChild(card);
+
+    setTimeout(() => {
+      card.querySelectorAll('.bar-fill').forEach(bar => {
+        bar.style.width = bar.dataset.w;
+      });
+    }, 2000 + i * 200);
+  });
+})();
+
+// ════════════════════════════════════
+// PODS TABLE
+// ════════════════════════════════════
+(function() {
+  const pods = [
+    { name: 'nginx-deployment-59dd79bdb9-b72t6',  image: 'homepage-80:latest',   status: 'running', restarts: 0, age: '3d' },
+    { name: 'udp-app-healthcheck-1700-htx8d',      image: 'udp-app:1.7.0',        status: 'running', restarts: 0, age: '3d' },
+    { name: 'udp-app-healthcheck-1700-kmqkp',      image: 'udp-app:1.7.0',        status: 'running', restarts: 0, age: '3d' },
+    { name: 'udp-app-healthcheck-1700-zkqlg',      image: 'udp-app:1.7.0',        status: 'running', restarts: 0, age: '3d' },
+    { name: 'udp-app-healthcheck-1710-25flh',      image: 'udp-app:1.7.1',        status: 'running', restarts: 0, age: '3d' },
+    { name: 'udp-app-healthcheck-1710-npzxk',      image: 'udp-app:1.7.1',        status: 'running', restarts: 0, age: '3d' },
+    { name: 'udp-app-healthcheck-1710-t5qc2',      image: 'udp-app:1.7.1',        status: 'running', restarts: 0, age: '3d' },
+  ];
+
+  const tbody = document.getElementById('pods-tbody');
+  pods.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:#fff;font-size:10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</td>
+      <td style="color:var(--dim);font-size:10px">${p.image}</td>
+      <td><span class="pill ${p.status}">${p.status}</span></td>
+      <td style="color:var(--dim)">${p.restarts}</td>
+      <td style="color:var(--dim)">${p.age}</td>`;
+    tbody.appendChild(tr);
+  });
+})();
+</script>
+</body>
+</html>

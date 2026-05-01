@@ -1,0 +1,105 @@
+# Useful Commands:
+
+chmod +x 01.deploy_udp_health_check_server_nlb_oci_script.sh
+bash 01.deploy_udp_health_check_server_nlb_oci_script.sh
+
+chmod +x 02.destroy_udp_health_check_server_nlb_oci_script.sh
+bash 02.destroy_udp_health_check_server_nlb_oci_script.sh
+
+
+
+# Port Forward
+
+## Context - Example:
+
+# Port Forward
+
+## Context - Example:
+
+Pod: udp-app-with-healthcheck-1700-daemon-set-544dcd4c48-7vvtq
+Service: udp-1700-app-service
+Namespace: oci-devops
+
+
+
+## Build & Push da imagem (Docker Hub)
+
+### Login Docker Hub
+
+docker login
+docker login -u "adailsilva" -p "[PASSWORD]" https://docker.io/
+
+docker build -t adailsilva/udp-health-check-server-1700:latest .
+docker push adailsilva/udp-health-check-server-1700:latest
+
+docker build -t adailsilva/udp-health-check-server-1710:latest .
+docker push adailsilva/udp-health-check-server-1710:latest
+
+docker images
+
+
+
+## Build & Push da imagem (Oracle Cloud Infrastructure)
+
+### Login Oracle Cloud Infrastructure
+docker login -u griszz3l82u1/adail101@hotmail.com -p "[PASSWORD]" gru.ocir.io
+docker login -u griszz3l82u1/adail101@hotmail.com -p "[PASSWORD]" https://gru.ocir.io/
+
+# Ativar QEMU com suporte a arm64
+# Execute o seguinte comando apenas uma vez:
+docker run --privileged --rm tonistiigi/binfmt --install all
+
+
+cd /home/adailsilva/Apps/OracleCloud/k8s-on-arm-oci-always-free/02.udp_health_check-nlb_oci/kubernetes/
+
+docker buildx build \
+  --platform linux/arm64 \
+  -t gru.ocir.io/griszz3l82u1/udp-health-check-server-1700_platform_linux-arm64:latest \
+  --no-cache --push .
+
+docker buildx build \
+  --platform linux/arm64 \
+  -t gru.ocir.io/griszz3l82u1/udp-health-check-server-1710_platform_linux-arm64:latest \
+  --no-cache --push .
+
+docker buildx build --platform 'linux/arm64' --tag gru.ocir.io/griszz3l82u1/udp-health-check-server-1700_platform_linux-arm64:latest --no-cache . 
+docker buildx build --platform 'linux/arm64' --tag gru.ocir.io/griszz3l82u1/udp-health-check-server-1700_platform_linux-arm64:latest --no-cache --push .
+
+docker buildx build --platform 'linux/arm64' --tag gru.ocir.io/griszz3l82u1/udp-health-check-server-1710_platform_linux-arm64:latest --no-cache . 
+docker buildx build --platform 'linux/arm64' --tag gru.ocir.io/griszz3l82u1/udp-health-check-server-1710_platform_linux-arm64:latest --no-cache --push .
+
+docker images
+
+
+
+## Deploy no Kubernetes
+kubectl apply -f 01.create__Namespace.yaml
+
+
+kubectl create secret docker-registry oci-registry-secret --docker-server=gru.ocir.io --docker-username='griszz3l82u1/adail101@hotmail.com' --docker-password='[PASSWORD]' --docker-email='adail101@hotmail.com' -n oci-devops
+
+kubectl create secret docker-registry oci-registry-secret --docker-server=gru.ocir.io --docker-username='griszz3l82u1/Default/adail101@hotmail.com' --docker-password='[PASSWORD]' --docker-email='adail101@hotmail.com' -n oci-devops
+
+
+# Change the port that will be sent by parameter in the Dockerfile --> 1700.
+docker buildx build --platform 'linux/arm64' --tag gru.ocir.io/griszz3l82u1/udp-health-check-server-1700_platform_linux-arm64:latest --no-cache . 
+docker buildx build --platform 'linux/arm64' --tag gru.ocir.io/griszz3l82u1/udp-health-check-server-1700_platform_linux-arm64:latest --no-cache --push .
+
+# Change the port that will be sent by parameter in the Dockerfile --> 1710.
+docker buildx build --platform 'linux/arm64' --tag gru.ocir.io/griszz3l82u1/udp-health-check-server-1710_platform_linux-arm64:latest --no-cache . 
+docker buildx build --platform 'linux/arm64' --tag gru.ocir.io/griszz3l82u1/udp-health-check-server-1710_platform_linux-arm64:latest --no-cache --push .
+
+
+# Commands:
+chmod +x 01.deploy_udp_health_check_server_nlb_oci_script.sh
+bash 01.deploy_udp_health_check_server_nlb_oci_script.sh
+
+chmod +x 02.destroy_udp_health_check_server_nlb_oci_script.sh
+bash 02.destroy_udp_health_check_server_nlb_oci_script.sh
+
+
+✅ Resultado:
+
+ - O listener UDP do NLB envia "PING" via UDP para porta [port] ex: 1700/1710.
+ - O sidecar responde com "PONG", fazendo o health check passar.
+ - O tráfego real para a app continua indo para [port] ex: 30700/30710 via UDP.

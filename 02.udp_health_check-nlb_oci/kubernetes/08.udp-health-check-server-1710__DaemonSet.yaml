@@ -1,0 +1,36 @@
+
+---
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: udp-app-with-healthcheck-1710-daemon-set
+  namespace: oci-devops
+  labels:
+    app: udp-app-with-healthcheck-1710-daemon-set
+spec:
+  selector:
+    matchLabels:
+      app: udp-app
+  template:
+    metadata:
+      labels:
+        app: udp-app
+    spec:
+      hostNetwork: true
+      containers:
+#        - name: main-app
+#          image: adailsilva/servico-principal:latest
+#          ports:
+#            - containerPort: 30710
+#              protocol: UDP
+
+        - name: udp-healthcheck
+          image: gru.ocir.io/griszz3l82u1/udp-health-check-server-1710_platform_linux-arm64:latest
+#         args: ["1710"]
+          ports:
+            - containerPort: 1710
+              hostPort: 1710
+              protocol: UDP
+      imagePullSecrets:
+        - name: oci-registry-secret
