@@ -1,3 +1,6 @@
+# Conteúdo para pipeline do GitHub Actions na raíz do projeto.
+## .github/workflows/main.yaml
+
 name: CI/CD
 
 on:
@@ -61,13 +64,14 @@ jobs:
 
       - name: Build
         run: |
-          docker build --push --platform linux/amd64,linux/arm64 -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:latest app/.
+          docker build --push --platform linux/amd64,linux/arm64 -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:latest .
 
       - name: Deploy to K8S
         run: |
-          sed -i 's/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/g' app/02.homepage-nginx__Deployment.yaml
+          sed -i 's/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/g' 02.homepage-nginx__Deployment.yaml
           kubectl apply -f app/02.homepage-nginx__Deployment.yaml -n oci-devops
 
       - name: Restart nginx
         run: |
           kubectl rollout restart deployment nginx -n oci-devops
+
