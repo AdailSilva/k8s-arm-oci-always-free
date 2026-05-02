@@ -1,7 +1,7 @@
 # ☸️ Kubernetes on ARM — OCI Always Free
 
 > Implantação **totalmente automatizada** de um cluster Kubernetes em arquitetura **ARM (AArch64)** na Oracle Cloud Infrastructure, utilizando exclusivamente os recursos **Always Free** — sem nenhum custo.
-> A infraestrutura é provisionada como código via **Terraform** / **OpenTofu**, e as aplicações padrão são gerenciadas com manifests Kubernetes organizados por módulo.
+> A infraestrutura é provisionada como código via **Terraform** / **OpenTofu**, e as aplicações são gerenciadas com manifests Kubernetes organizados por módulo.
 
 ---
 
@@ -18,9 +18,25 @@
 - [Recursos Always Free Utilizados](#recursos-always-free-utilizados)
 - [Tecnologias e Componentes](#tecnologias-e-componentes)
 - [Estrutura do Repositório](#estrutura-do-repositório)
+- [Configuração de DNS — Subdomínios Obrigatórios](#configuração-de-dns--subdomínios-obrigatórios)
+  - [Quando cadastrar os subdomínios](#quando-cadastrar-os-subdomínios)
+  - [Subdomínios necessários neste projeto](#subdomínios-necessários-neste-projeto)
+  - [Exemplo prático — Registro .com.br (Registro.br)](#exemplo-prático--registro-combr-registrobr)
+  - [Verificar a propagação do DNS](#verificar-a-propagação-do-dns)
+  - [Atualizar os subdomínios nos manifestos](#atualizar-os-subdomínios-nos-manifestos-antes-do-deploy)
 - [Configuração Inicial](#configuração-inicial)
 - [Implantação da Infraestrutura](#implantação-da-infraestrutura)
 - [Implantando as Aplicações Padrão](#implantando-as-aplicações-padrão)
+- [Pré-requisito: OCI File Storage Service (FSS)](#pré-requisito-oci-file-storage-service-fss)
+  - [Por que o FSS é necessário](#por-que-o-fss-é-necessário)
+  - [Criando o FSS no console OCI](#criando-o-fss-no-console-oci)
+  - [Script de montagem e preparação dos diretórios](#script-de-montagem-e-preparação-dos-diretórios)
+  - [Como executar em todos os nós](#como-executar-em-todos-os-nós)
+  - [Tornar a montagem permanente (fstab)](#tornar-a-montagem-permanente-fstab)
+- [Mapa de Serviços e Links de Acesso](#mapa-de-serviços-e-links-de-acesso)
+  - [Serviços HTTP/HTTPS — acesso pelo navegador](#serviços-httphttps--acesso-pelo-navegador)
+  - [Serviços de rede — acesso direto via IP/porta](#serviços-de-rede--acesso-direto-via-ipporta)
+  - [Serviços internos ao cluster — port-forward](#serviços-internos-ao-cluster--acesso-via-kubectl)
 - [Acesso ao Cluster](#acesso-ao-cluster)
 - [CI/CD com GitHub Actions](#cicd-com-github-actions)
 - [OCI Container Registry](#oci-container-registry)
@@ -35,11 +51,11 @@
 
 Este projeto provisiona um cluster Kubernetes completo e funcional na **Oracle Cloud Infrastructure (OCI)** sem nenhum custo, aproveitando o plano **Always Free** da Oracle — que inclui instâncias ARM Ampere A1 com até 4 OCPUs e 24 GB de RAM por conta.
 
-Além da infraestrutura base, o projeto inclui três aplicações padrão que compõem o ambiente operacional mínimo do cluster:
+A infraestrutura é composta por 1 nó Control Plane e 3 nós Worker em arquitetura **ARM (AArch64)**, gerenciada inteiramente como código via **Terraform** / **OpenTofu**, e inclui três aplicações de infraestrutura base que compõem o ambiente operacional mínimo do cluster:
 
 - **Homepage** — página de apresentação do domínio, servida via NGINX com TLS automático pelo cert-manager e Let's Encrypt
 - **Metrics Server** — coleta de métricas de CPU e memória dos nós e pods, necessário para o Kubernetes Dashboard e para o `kubectl top`
-- **UDP Health Check** — servidor UDP em Java que responde a requisições `PING/PONG`, necessário para liberar verificações de saúde UDP no Network Load Balancer da OCI
+- **UDP Health Check** — servidor UDP em Java que responde a requisições `PING/PONG`, necessário para liberar as verificações de saúde UDP no Network Load Balancer da OCI e manter o Overall Health `OK`
 
 ---
 
@@ -574,7 +590,7 @@ Adicione `oci_api_key_public.pem` em **Identity → Users → (seu usuário) →
 │       └── 06.homepage-nginx__Ingress.yaml            # Ingress TLS letsencrypt-prod
 │
 ├── 01.metrics_server/               # App: Metrics Server
-│   ├── 00.UsefulScripts/            # Scripts de deploy e destroy
+│   ├── 00.UsefulScripts/
 │   │   ├── 01.deploy_metrics_server_script.sh
 │   │   └── 02.destroy_metrics_server_script.sh
 │   └── kubernetes/
@@ -588,22 +604,197 @@ Adicione `oci_api_key_public.pem` em **Identity → Users → (seu usuário) →
 │       ├── 07.metrics-server__Service.yaml
 │       └── 08.metrics-server__ApiService.yaml         # v1beta1.metrics.k8s.io
 │
-└── 02.udp_health_check-nlb_oci/     # App: UDP Health Check para NLB OCI
-    ├── 00.UsefulScripts/            # Scripts de deploy e destroy
-    │   ├── 01.deploy_udp_health_check_server_nlb_oci_script.sh
-    │   └── 02.destroy_udp_health_check_server_nlb_oci_script.sh
-    └── kubernetes/
-        ├── 01.create__Namespace.yaml
-        ├── 02.udp-health-check-server-1700__Deployment.yaml   # hostNetwork: true
-        ├── 03.udp-health-check-server-1700__Service.yaml      # UDP ClusterIP
-        ├── 04.udp-health-check-server-1700__DaemonSet.yaml    # Em todos os workers
-        ├── 05.udp-health-check-server-1700__Service-DaemonSet.yaml
-        ├── 06.udp-health-check-server-1710__Deployment.yaml
-        ├── 07.udp-health-check-server-1710__Service.yaml
-        ├── 08.udp-health-check-server-1710__DaemonSet.yaml
-        ├── 09.udp-health-check-server-1710__Service-DaemonSet.yaml
-        ├── Dockerfile                                # Build da imagem Java ARM64
-        └── UdpHealthCheckServer.java                 # Servidor UDP PING/PONG em Java
+├── 02.udp_health_check-nlb_oci/     # App: UDP Health Check para NLB OCI
+│   ├── 00.UsefulScripts/
+│   │   ├── 01.deploy_udp_health_check_server_nlb_oci_script.sh
+│   │   └── 02.destroy_udp_health_check_server_nlb_oci_script.sh
+│   └── kubernetes/
+│       ├── 01.create__Namespace.yaml
+│       ├── 02.udp-health-check-server-1700__Deployment.yaml   # hostNetwork: true
+│       ├── 03.udp-health-check-server-1700__Service.yaml      # UDP ClusterIP :1700
+│       ├── 04.udp-health-check-server-1700__DaemonSet.yaml    # 1 pod por worker
+│       ├── 05.udp-health-check-server-1700__Service-DaemonSet.yaml
+│       ├── 06.udp-health-check-server-1710__Deployment.yaml
+│       ├── 07.udp-health-check-server-1710__Service.yaml      # UDP ClusterIP :1710
+│       ├── 08.udp-health-check-server-1710__DaemonSet.yaml    # 1 pod por worker
+│       ├── 09.udp-health-check-server-1710__Service-DaemonSet.yaml
+│       ├── Dockerfile                                # Build da imagem Java ARM64
+│       └── UdpHealthCheckServer.java                 # Servidor UDP PING/PONG em Java
+```
+
+---
+
+## Configuração de DNS — Subdomínios Obrigatórios
+
+### Por que o registro DNS é obrigatório
+
+Todos os serviços expostos via HTTPS neste cluster dependem do **cert-manager + Let's Encrypt** para emissão automática de certificados TLS. O Let's Encrypt usa o desafio **ACME HTTP-01**: ele acessa uma URL específica no seu domínio para provar que você é o dono antes de emitir o certificado.
+
+Isso significa que **cada subdomínio precisa existir no seu DNS público e apontar para o IP do Load Balancer antes do deploy dos serviços**. Se o registro não existir ou ainda não propagou, o cert-manager ficará em loop tentando emitir o certificado e o Ingress não servirá HTTPS.
+
+```
+Let's Encrypt (ACME HTTP-01)
+    │
+    ├── Acessa http://k8s.seudominio.com.br/.well-known/acme-challenge/...
+    │         └── Resolve DNS → deve apontar para o IP do Load Balancer OCI
+    │                  └── NLB :80 → worker NodePort 30080 → Ingress NGINX → cert-manager
+    │                          └── ✅ Desafio aprovado → certificado emitido
+    │
+    └── Se o DNS não existir ou não apontar para o NLB → ❌ timeout → certificado não emitido
+```
+
+
+
+### Quando cadastrar os subdomínios
+
+O momento ideal é **durante a execução do `tofu apply` (ou `terraform apply`)**, não depois. O módulo `network` — segundo a ser executado — provisiona o IP Público Reservado e o Load Balancer em poucos segundos após o início do apply. Assim que o IP aparecer no console OCI, você já pode cadastrar os registros DNS, e a propagação ocorrerá em paralelo ao restante do provisionamento do cluster.
+
+```
+tofu apply -parallelism=1
+     │
+     ├── ~30s → NLB + IP criados  ← 📌 CADASTRE OS REGISTROS DNS AQUI
+     │                                  (propagação TTL=300 leva ~5 minutos)
+     ├── ~5min  → VMs provisionadas
+     ├── ~10min → cluster Kubernetes operacional
+     ├── ~15min → cert-manager tenta emitir certificados
+     │               └── ✅ DNS já propagado → certificados emitidos
+     └── ~20-30min → apply concluído com tudo pronto
+```
+
+> Veja como obter o IP durante o apply na seção [Como obter o IP durante o apply](#como-obter-o-ip-durante-o-apply), dentro de **Implantação da Infraestrutura → Terraform → Passo 6**.
+
+---
+
+### Subdomínios necessários neste projeto
+
+Abaixo estão todos os subdomínios que precisam ser cadastrados no seu provedor DNS, apontando para o **IP Público Reservado** do Load Balancer OCI:
+
+| Subdomínio | Serviço | Tipo de registro | TTL sugerido |
+|---|---|---|---|
+| `k8s.seudominio.com.br` | Homepage NGINX + Kubernetes Dashboard | `A` | 300 |
+
+> Todos os registros são do tipo `A` apontando para o mesmo IP — o IP Público Reservado do NLB, obtido com `terraform output -raw cluster_public_ip`.
+
+---
+
+### Como obter o IP do Load Balancer
+
+```bash
+# Via output do Terraform/OpenTofu
+terraform output -raw cluster_public_ip
+
+# Via kubectl (após o cluster estar de pé)
+kubectl get service -n ingress-nginx ingress-nginx-controller \
+  -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+
+# Também disponível no console OCI:
+# Networking → Load Balancers → Network Load Balancers → (seu NLB) → IP Address
+```
+
+---
+
+### Exemplo prático — Registro `.com.br` (Registro.br)
+
+No Registro.br, o gerenciamento de DNS é feito em **registro.br → Domínios → (seu domínio) → Editar zona DNS**.
+
+> ⚠️ **Atenção — Modo Avançado obrigatório:** por padrão, o painel do Registro.br opera no **modo básico**, que não permite cadastrar subdomínios personalizados. Para adicionar os registros `A` necessários para este cluster, é preciso ativar o **Modo Avançado** na seção de zona DNS.
+>
+> Acesse: [registro.br → Painel → Domínios → (seu domínio) → DNS → Configurar zona DNS](https://registro.br/painel/dominios/) e procure pela opção **"Modo Avançado"** ou **"Edição avançada de zona"**.
+>
+> **A ativação do modo avançado pode levar em média 2 horas para ser processada pelo Registro.br** — portanto, ative-o com antecedência, idealmente antes mesmo de iniciar o provisionamento do cluster, para que quando o IP do NLB estiver disponível o painel já esteja liberado para edição.
+
+```
+Fluxo recomendado de tempo:
+
+Dia anterior (ou horas antes):
+└── Ativar Modo Avançado no Registro.br  ← aguardar ~2 horas para processar
+
+Durante o tofu apply (~30 segundos após iniciar):
+└── NLB + IP criados → cadastrar os registros A na zona DNS
+        └── propagação TTL=300 (~5 minutos)
+
+Ao final do apply (~20-30 min):
+└── Cluster pronto + DNS propagado + certificados TLS emitidos ✅
+```
+
+Para cada subdomínio, adicione uma entrada do tipo `A`:
+
+```
+Registro.br — Zona DNS de seudominio.com.br
+┌──────────────────────────────────────────┬──────┬───────────────────┬─────┐
+│ Nome                                     │ Tipo │ Valor             │ TTL │
+├──────────────────────────────────────────┼──────┼───────────────────┼─────┤
+│ k8s                                      │  A   │ <IP_DO_NLB>       │ 300 │
+└──────────────────────────────────────────┴──────┴───────────────────┴─────┘
+```
+
+> No Registro.br, o campo "Nome" aceita apenas o prefixo do subdomínio — sem o domínio raiz. Ou seja, para criar `k8s.seudominio.com.br`, preencha o campo Nome com `k8s` apenas.
+
+**Passo a passo no painel do Registro.br:**
+
+1. Acesse [registro.br](https://registro.br) e faça login
+2. Clique em **Domínios** e selecione o seu domínio
+3. Acesse **DNS → Configurar zona DNS**
+4. Ative o **Modo Avançado** (se ainda não estiver ativo) — aguarde até 2 horas para o processamento
+5. Com o modo avançado ativo, clique em **Adicionar entrada** para cada subdomínio
+6. Selecione o tipo `A`, preencha o **Nome** (ex: `k8s`) e o **Valor** com o IP do NLB
+7. Clique em **Salvar**
+8. Aguarde a propagação (TTL de 300 segundos = 5 minutos para a maioria dos resolvedores)
+
+---
+
+### Verificar a propagação do DNS
+
+Antes de fazer o deploy dos serviços, confirme que o registro propagou:
+
+```bash
+# Verificar cada subdomínio — todos devem retornar o IP do NLB
+dig +short k8s.seudominio.com.br
+
+# Verificar de um servidor DNS público (confirma propagação global)
+dig +short k8s.seudominio.com.br @8.8.8.8    # Google DNS
+dig +short k8s.seudominio.com.br @1.1.1.1    # Cloudflare DNS
+
+# Verificar propagação completa via ferramenta online:
+# https://dnschecker.org
+```
+
+**Resultado esperado:** todos os subdomínios devem retornar o mesmo IP do Load Balancer OCI.
+
+---
+
+### Outros provedores de DNS
+
+A lógica é a mesma independente do provedor. A única diferença é a interface:
+
+| Provedor | Onde acessar |
+|---|---|
+| **Registro.br** | registro.br → Domínios → Editar zona DNS |
+| **Cloudflare** | dash.cloudflare.com → DNS → Records → Add record |
+| **GoDaddy** | godaddy.com → Meus Domínios → DNS → Adicionar registro |
+| **AWS Route 53** | console.aws.amazon.com → Route 53 → Hosted zones → Create record |
+| **Google Domains** | domains.google → DNS → Gerenciar registros personalizados |
+
+> Se estiver usando o **OCI DNS** (Oracle Cloud Infrastructure DNS), os registros podem ser criados diretamente no console em **Networking → DNS Management → Zones → (sua zona) → Add Record**.
+
+---
+
+### Atualizar os subdomínios nos manifestos antes do deploy
+
+Os arquivos Ingress do projeto precisam ser editados com seus subdomínios reais **antes** de aplicar os manifests. Localize e substitua em cada arquivo:
+
+**Homepage:**
+```bash
+# Arquivo: 00.homepage/kubernetes/06.homepage-nginx__Ingress.yaml
+# Substituir: k8s.adailsilva.com.br → k8s.seudominio.com.br
+sed -i 's/k8s.adailsilva.com.br/k8s.seudominio.com.br/g' \
+  00.homepage/kubernetes/06.homepage-nginx__Ingress.yaml
+```
+
+**Variável do Terraform (cluster principal):**
+```hcl
+# variables.auto.tfvars
+cluster_public_dns_name = "k8s.seudominio.com.br"
 ```
 
 ---
@@ -766,6 +957,66 @@ terraform apply -parallelism=1
 
 > Por padrão, o Terraform (e o OpenTofu) executam até **10 operações em paralelo**. O flag `-parallelism=1` força a criação dos recursos de forma **estritamente sequencial**, um por vez. Isso é especialmente útil neste projeto porque a API do Network Load Balancer da OCI é suscetível a race conditions ao criar múltiplos listeners, backend sets e backends simultaneamente — o que pode causar erros intermitentes do tipo `409-Conflict` ou `412-PreconditionFailed`. Usar `-parallelism=1` resolve esses conflitos ao garantir que cada recurso do NLB seja criado e confirmado antes do próximo iniciar. A desvantagem é que o tempo total de provisionamento aumenta; use esta opção apenas quando o `apply` padrão falhar com erros de concorrência na OCI.
 
+> 💡 **Momento ideal para cadastrar os subdomínios no DNS:** o módulo `network` é o segundo a ser executado e provisiona o IP Público Reservado e o Load Balancer em poucos segundos após o início do `apply`. Você **não precisa aguardar os 15–30 minutos** do provisionamento completo — assim que a criação do NLB aparecer nos logs do Terraform/OpenTofu, o IP já estará disponível no console OCI e pode ser copiado para cadastrar os registros DNS. Dessa forma, quando o cluster terminar de subir, os subdomínios já estarão propagados e o cert-manager conseguirá emitir os certificados TLS imediatamente. Veja a seção [Como obter o IP durante o apply](#como-obter-o-ip-durante-o-apply) logo abaixo.
+
+#### Como obter o IP durante o apply
+
+Enquanto o `terraform apply` ou `tofu apply` ainda está em execução, abra um **segundo terminal** e use qualquer uma das opções abaixo para obter o IP imediatamente após os recursos de rede serem criados:
+
+**Opção 1 — Console OCI (mais rápido, sem dependências):**
+1. Acesse **OCI Console → Networking → Load Balancers → Network Load Balancers**
+2. O NLB `k8s-arm-oci-always-free` (ou o nome configurado) aparecerá com status `Creating` em segundos
+3. Clique nele — o **IP Address** já estará preenchido mesmo com o NLB ainda provisionando
+4. Copie o IP e vá direto ao painel do seu provedor DNS para criar os registros
+
+**Opção 2 — OCI CLI (no segundo terminal):**
+```bash
+# Listar os IPs públicos reservados da sua tenancy
+oci network public-ip list \
+  --compartment-id <COMPARTMENT_OCID> \
+  --scope REGION \
+  --query 'data[?"lifecycle-state"==`AVAILABLE`].{"IP": "ip-address", "Nome": "display-name"}' \
+  --output table
+
+# Ou buscar diretamente o IP do NLB pelo nome
+oci nlb network-load-balancer list \
+  --compartment-id <COMPARTMENT_OCID> \
+  --query 'data.items[0]."ip-addresses"[0]."ip-address"' \
+  --raw-output
+```
+
+**Opção 3 — Terraform/OpenTofu state (após o módulo network concluir):**
+```bash
+# Enquanto o apply ainda corre, em outro terminal, dentro do diretório do projeto:
+terraform output cluster_public_ip 2>/dev/null || \
+  terraform state show module.network.oci_core_public_ip.cluster_public_ip \
+  | grep "ip_address"
+
+# OpenTofu:
+tofu output cluster_public_ip 2>/dev/null || \
+  tofu state show module.network.oci_core_public_ip.cluster_public_ip \
+  | grep "ip_address"
+```
+
+**Fluxo recomendado:**
+
+```
+tofu apply -parallelism=1  (Terminal 1 — deixa rodando)
+     │
+     ├── ~30s → módulo network concluído → NLB + IP criados
+     │               └── Terminal 2: copie o IP do console OCI
+     │                       └── Cadastre os registros DNS no Registro.br
+     │                               (propagação leva ~5 minutos com TTL=300)
+     │
+     ├── ~5min → módulo compute concluído → VMs provisionadas
+     ├── ~10min → módulo k8s concluído → cluster Kubernetes operacional
+     ├── ~15min → módulo k8s_scaffold → cert-manager tenta emitir certificados
+     │               └── ✅ DNS já propagado → certificados emitidos com sucesso
+     └── ~20-30min → apply concluído
+```
+
+> Cadastrar os registros DNS **durante o apply** — e não depois — é a forma mais eficiente de garantir que os certificados TLS estejam prontos assim que o cluster terminar de subir, sem precisar aguardar propagação adicional.
+
 #### 7. Consultar os outputs após a implantação
 
 ```bash
@@ -896,6 +1147,8 @@ tofu apply -parallelism=1
 ```
 
 > Por padrão, o OpenTofu (e o Terraform) executam até **10 operações em paralelo**. O flag `-parallelism=1` força a criação dos recursos de forma **estritamente sequencial**, um por vez. Isso é especialmente útil neste projeto porque a API do Network Load Balancer da OCI é suscetível a race conditions ao criar múltiplos listeners, backend sets e backends simultaneamente — o que pode causar erros intermitentes do tipo `409-Conflict` ou `412-PreconditionFailed`. Usar `-parallelism=1` resolve esses conflitos ao garantir que cada recurso do NLB seja criado e confirmado antes do próximo iniciar. A desvantagem é que o tempo total de provisionamento aumenta; use esta opção apenas quando o `apply` padrão falhar com erros de concorrência na OCI.
+
+> 💡 **Momento ideal para cadastrar os subdomínios no DNS:** o módulo `network` conclui em poucos segundos após o início do `apply` e o IP do Load Balancer já está disponível no console OCI antes do cluster terminar de subir. Cadastre os registros DNS nesse intervalo para que a propagação ocorra em paralelo ao provisionamento. Veja o fluxo detalhado na seção [Como obter o IP durante o apply](#como-obter-o-ip-durante-o-apply) acima (seção Terraform — o procedimento é idêntico para OpenTofu).
 
 #### 7. Consultar os outputs após a implantação
 
@@ -1046,7 +1299,6 @@ kubectl get certificate -n oci-devops
 ```
 
 ---
-
 ## Acesso ao Cluster
 
 O `kubeconfig` externo é salvo em `.terraform/.kube/config-external`. Se `linux_overwrite_local_kube_config = true`, é copiado automaticamente para `~/.kube/config`.
@@ -1062,11 +1314,18 @@ kubectl get nodes -o wide
 # worker-1   Ready    worker          8m    v1.31.x   Ubuntu 24.04 LTS
 # worker-2   Ready    worker          8m    v1.31.x   Ubuntu 24.04 LTS
 
-# Verificar pods do sistema
-kubectl get pods -n kube-system
-kubectl get pods -n ingress-nginx
-kubectl get pods -n cert-manager
-kubectl get pods -n oci-devops
+# Verificar pods de todos os namespaces relevantes
+kubectl get pods -n kube-system        # Sistema + Metrics Server
+kubectl get pods -n ingress-nginx      # Ingress Controller
+kubectl get pods -n cert-manager       # Gerenciador de certificados TLS
+kubectl get pods -n oci-devops         # Homepage + UDP Health Check
+
+
+# Verificar certificados TLS em todos os namespaces
+kubectl get certificate -A
+
+# Verificar Ingress em todos os namespaces
+kubectl get ingress -A
 ```
 
 ### Acesso SSH
@@ -1312,14 +1571,55 @@ Já contornado automaticamente com `--ignore-preflight-errors=NumCPU,Mem` no scr
 
 ### ❌ Let's Encrypt não emite certificado
 
-O DNS deve estar propagado e apontando para o IP do Load Balancer antes da emissão.
+A causa mais comum é que o registro DNS do subdomínio ainda não existe ou ainda não propagou. O cert-manager usa o desafio **ACME HTTP-01**, que exige que o subdomínio resolva para o IP do NLB no momento da verificação.
+
+**1. Confirmar que o DNS está propagado e aponta para o IP correto:**
 
 ```bash
+# Obter o IP do NLB
+terraform output -raw cluster_public_ip
+
+# Verificar cada subdomínio — deve retornar o IP do NLB
 dig +short k8s.seudominio.com.br
 
-kubectl describe certificate -n oci-devops
-kubectl describe certificaterequest -n oci-devops
+# Confirmar propagação via DNS público
+dig +short k8s.seudominio.com.br @8.8.8.8
+dig +short k8s.seudominio.com.br @1.1.1.1
+```
+
+> Se o DNS não retornar o IP correto, cadastre ou corrija o registro no seu provedor (ex: Registro.br) e aguarde a propagação. Consulte a seção [Configuração de DNS — Subdomínios Obrigatórios](#configuração-de-dns--subdomínios-obrigatórios).
+
+**2. Verificar o status do certificado e do desafio ACME:**
+
+```bash
+# Status geral dos certificados em todos os namespaces
+kubectl get certificate -A
+
+# Detalhes do certificado — procure por "Message" e "Reason"
+
+
+# Detalhes do desafio HTTP-01 — procure pelo campo "Presented" e "Reason"
 kubectl describe challenges -A
+
+# Verificar o CertificateRequest
+kubectl describe certificaterequest -A
+```
+
+**3. Verificar se o Ingress NGINX está roteando o desafio corretamente:**
+
+```bash
+# O cert-manager cria um Ingress temporário durante o desafio
+kubectl get ingress -A | grep cm-acme
+
+# Os pods do Ingress devem estar Running
+kubectl get pods -n ingress-nginx
+```
+
+**4. Verificar se o subdomínio está correto no manifesto Ingress:**
+
+```bash
+# O host no Ingress deve bater exatamente com o registro DNS
+
 ```
 
 ---
