@@ -77,5 +77,6 @@ jobs:
 
       - name: Restart nginx
         run: |
-          kubectl rollout restart deployment nginx -n oci-devops
+          kubectl rollout restart deployment nginx-deployment -n oci-devops
+
 
