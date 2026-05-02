@@ -64,7 +64,11 @@ jobs:
 
       - name: Build
         run: |
-          docker build --push --platform linux/amd64,linux/arm64 -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:latest .
+          docker build \
+          --push  \
+          --platform linux/amd64,linux/arm64 \
+          -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:latest \
+          00.homepage
 
       - name: Deploy to K8S
         run: |
