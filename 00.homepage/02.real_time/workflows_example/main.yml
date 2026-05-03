@@ -65,11 +65,11 @@ jobs:
       - name: Build
         run: |
           docker build \
-          --push  \
+          --push \
           --platform linux/amd64,linux/arm64 \
+          -f 00.homepage/02.real_time/Dockerfile \
           -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:latest \
           00.homepage
-
       - name: Deploy to K8S
         run: |
           sed -i 's/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/g' 00.homepage/02.real_time/kubernetes/02.homepage-nginx__Deployment.yaml
