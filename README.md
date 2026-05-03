@@ -1418,6 +1418,12 @@ region=sa-saopaulo-1
 key_file=/home/runner/.oci/key.pem
 ```
 
+> ⚠️ **Atenção — erro comum:** o arquivo `~/.oci/config` na sua máquina local provavelmente tem o caminho `key_file=/home/seu_usuario/.oci/oci_api_key.pem`. Se você copiar esse conteúdo sem ajustar, o OCI CLI no runner falhará com `FileNotFoundError` porque o caminho local não existe no ambiente do GitHub Actions. Antes de salvar o Secret, certifique-se de que o campo `key_file` está exatamente como `/home/runner/.oci/key.pem`. Use o comando abaixo para gerar o conteúdo já corrigido:
+> ```bash
+> cat ~/.oci/config | sed 's|key_file=.*|key_file=/home/runner/.oci/key.pem|'
+> ```
+> Copie a saída deste comando — e não o `cat ~/.oci/config` diretamente — para o Secret `OCI_CONFIG`.
+
 **`OCI_KEY_FILE`** — exiba e copie o conteúdo da chave privada:
 ```bash
 cat ~/.oci/oci_api_key.pem
