@@ -1371,17 +1371,20 @@ on:
 
 | # | Step | Descrição |
 |---|---|---|
-| 1 | **Checkout** | Clona o repositório no runner |
-| 2 | **Set up QEMU** | Habilita emulação ARM64 no runner x86 |
-| 3 | **Set up Docker Buildx** | Configura o builder multi-plataforma |
-| 4 | **Install OCI CLI** | Instala o OCI CLI e escreve as credenciais a partir dos Secrets |
-| 5 | **Install kubectl** | Instala o `kubectl` e configura o kubeconfig do cluster |
-| 6 | **Currently running services** | Exibe os pods em `oci-devops` antes do deploy |
-| 7 | **Login to Docker registry** | Autentica no OCI Container Registry |
-| 8 | **Available platforms** | Lista as plataformas disponíveis no Buildx |
-| 9 | **Build** | Faz build e push da imagem para `linux/amd64` e `linux/arm64` |
-| 10 | **Deploy to K8S** | Aplica o manifesto `02.homepage-nginx__Deployment.yaml` no cluster |
-| 11 | **Restart nginx** | Executa `rollout restart` no Deployment `nginx` em `oci-devops` |
+| 1 | **Checkout** | Clona o repositório no runner (com `fetch-depth: 0` para buscar todas as tags Git) |
+| 2 | **Calcular próxima versão** | Lê a última tag Git no formato `X.Y`, incrementa o minor automaticamente (ou o major se `workflow_dispatch` com `version_type: major`) |
+| 3 | **Criar tag Git** | Cria e faz push da nova tag de versão no repositório usando o `GH_PAT` |
+| 4 | **Set up QEMU** | Habilita emulação ARM64 no runner x86 |
+| 5 | **Set up Docker Buildx** | Configura o builder multi-plataforma |
+| 6 | **Install OCI CLI** | Instala o OCI CLI e escreve as credenciais a partir dos Secrets |
+| 7 | **Install kubectl** | Instala o `kubectl` e configura o kubeconfig do cluster |
+| 8 | **Currently running services** | Exibe os pods em `oci-devops` antes do deploy |
+| 9 | **Login to Docker registry** | Autentica no OCI Container Registry |
+| 10 | **Available platforms** | Lista as plataformas disponíveis no Buildx |
+| 11 | **Build** | Faz build e push da imagem com duas tags: a versão calculada (ex: `0.3`) e `latest` |
+| 12 | **Deploy to K8S** | Aplica o manifesto `02.homepage-nginx__Deployment.yaml` no cluster |
+| 13 | **Restart nginx** | Executa `rollout restart` no Deployment `nginx` em `oci-devops` |
+| 14 | **Limpar imagens unknown** | Remove do OCI Registry os manifestos intermediários sem tag (`unknown`) gerados pelo build multi-plataforma |
 
 ### Secrets do repositório GitHub
 
@@ -1396,6 +1399,8 @@ Todos os valores abaixo devem ser cadastrados em **Settings → Secrets and vari
 | `DOCKER_USERNAME` | Username de autenticação no OCI Registry | Formato: `<namespace>/<seu_email>` — ex: `griszz3l82u1/adail101@hotmail.com` |
 | `DOCKER_PASSWORD` | Auth token do OCI Registry | Gerado em **OCI Console → Identity → Users → Auth Tokens → Generate Token** |
 | `DOCKER_OBJECT_STORAGE_NAMESPACE` | Namespace do OCI Object Storage | Encontrado em **OCI Console → Object Storage → Namespace** ou via `oci os ns get` |
+| `GH_PAT` | Personal Access Token do GitHub com escopo `repo` | Gerado em **GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)** |
+| `OCI_COMPARTMENT_ID` | OCID do compartment onde o Container Registry está | Encontrado em **OCI Console → Identity & Security → Compartments** ou nos detalhes do repositório no Container Registry |
 
 ### Como obter cada Secret
 
@@ -1443,6 +1448,45 @@ oci os ns get --query 'data' --raw-output
 1. Acesse **Identity & Security → Users → (seu usuário)**
 2. Clique em **Auth Tokens → Generate Token**
 3. Copie o token gerado (ele é exibido apenas uma vez)
+
+**`GH_PAT` (Personal Access Token do GitHub)** — necessário para que o pipeline crie e faça push de tags Git de versionamento (ex: `0.1`, `0.2`, `1.0`) no repositório. O `GITHUB_TOKEN` padrão do Actions não tem permissão de escrita em tags, por isso é obrigatório criar um token pessoal:
+
+1. Acesse seu perfil no GitHub → clique na foto → **Settings**
+2. No menu lateral esquerdo, role até o fim → **Developer settings**
+3. **Personal access tokens → Tokens (classic)**
+4. Clique em **Generate new token → Generate new token (classic)**
+5. Preencha:
+   - **Note:** `GH_PAT` (ou qualquer nome descritivo)
+   - **Expiration:** escolha um prazo (ex: `90 days` ou `No expiration`)
+   - **Scopes:** marque apenas ✅ `repo` — já inclui permissão de escrita em tags e branches
+6. Clique em **Generate token** e **copie o valor gerado** (ele é exibido apenas uma vez)
+7. Adicione como Secret no repositório com o nome `GH_PAT`
+
+> O pipeline usa o `GH_PAT` no step de `Checkout` (`token: ${{ secrets.GH_PAT }}`) e no step **Criar tag Git**, que executa `git push origin <versão>`. Sem este token, o push de tags falhará com erro de permissão.
+
+**`OCI_COMPARTMENT_ID`** — OCID do compartment onde o OCI Container Registry está provisionado. Necessário para que o OCI CLI liste e delete as imagens `unknown` geradas pelo build multi-plataforma:
+
+**Opção 1 — Via console OCI (Identity):**
+1. Acesse [cloud.oracle.com](https://cloud.oracle.com) e faça login
+2. Menu (☰) → **Identity & Security → Compartments**
+3. Clique no compartment onde seu Container Registry está (geralmente o mesmo criado pelo Terraform: `k8s-on-arm-oci-always-free`, ou o compartment root)
+4. Copie o **OCID** exibido na página — tem o formato:
+```
+ocid1.compartment.oc1..aaaaaaaaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**Opção 2 — Via console OCI (Container Registry):**
+1. Menu (☰) → **Developer Services → Container Registry**
+2. Clique no repositório `homepage-80_platform_linux-arm64`
+3. Na página de detalhes, o campo **Compartment OCID** exibe o valor diretamente
+
+**Opção 3 — Via OCI CLI:**
+```bash
+# Lista todos os compartments e seus OCIDs
+oci iam compartment list --query 'data[*].{"name":name,"id":id}' --output table
+```
+
+Adicione o OCID como Secret no repositório com o nome `OCI_COMPARTMENT_ID`.
 
 ### Como o pipeline constrói e implanta a imagem
 
