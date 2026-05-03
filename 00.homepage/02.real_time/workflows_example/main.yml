@@ -2,14 +2,18 @@
 ## .github/workflows/main.yaml
 
 name: CI/CD
-
 on:
   push:
     branches:
       - master
     paths:
       - '00.homepage/02.real_time/index.html'
-  workflow_dispatch: 
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Tipo de versão: minor (padrão) ou major'
+        required: false
+        default: 'minor'
 
 jobs:
   build:
@@ -17,6 +21,41 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Necessário para buscar tags Git
+          token: ${{ secrets.GH_PAT }}  # PAT com permissão de escrita para criar tags
+
+      # ─── VERSIONAMENTO ────────────────────────────────────────────────────────
+      - name: Calcular próxima versão
+        id: version
+        run: |
+          # Busca a última tag no formato X.Y, se não existir começa do 0.0
+          LATEST=$(git tag --list '[0-9]*.[0-9]*' | sort -V | tail -1)
+
+          if [ -z "$LATEST" ]; then
+            LATEST="0.0"
+          fi
+
+          MAJOR=$(echo "$LATEST" | cut -d. -f1)
+          MINOR=$(echo "$LATEST" | cut -d. -f2)
+
+          # Se disparado manualmente com major, incrementa major
+          if [ "${{ github.event.inputs.version_type }}" == "major" ]; then
+            NEW_VERSION="$((MAJOR + 1)).0"
+          else
+            NEW_VERSION="$MAJOR.$((MINOR + 1))"
+          fi
+
+          echo "Nova versão: $NEW_VERSION"
+          echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Criar tag Git com a nova versão
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ steps.version.outputs.VERSION }}
+          git push origin ${{ steps.version.outputs.VERSION }}
+      # ──────────────────────────────────────────────────────────────────────────
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -27,7 +66,7 @@ jobs:
         with:
           install: true
 
-      - name: 'Install OCI CLI'
+      - name: Install OCI CLI
         run: |
           mkdir ~/.oci
           echo "${{ secrets.OCI_CONFIG }}" > ~/.oci/config
@@ -40,7 +79,7 @@ jobs:
           oci setup repair-file-permissions --file /home/runner/.oci/config
           oci setup repair-file-permissions --file /home/runner/.oci/key.pem
 
-      - name: 'Install kubectl'
+      - name: Install kubectl
         run: |
           mkdir /tmp/.kube
           curl -L -O "https://dl.k8s.io/release/v1.22.4/bin/linux/amd64/kubectl" -o kubectl
@@ -49,7 +88,7 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" > /tmp/.kube/config
           echo "KUBECONFIG=/tmp/.kube/config" >> $GITHUB_ENV
 
-      - name: 'Currently running services'
+      - name: Currently running services
         run: kubectl get pods -n oci-devops
 
       - name: Login to Docker registry
@@ -62,14 +101,17 @@ jobs:
       - name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
 
+      # Faz push com a versão específica E com latest
       - name: Build
         run: |
           docker build \
           --push \
           --platform linux/amd64,linux/arm64 \
           -f 00.homepage/02.real_time/03.k8s_dashboard_frontend/Dockerfile \
+          -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
           -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:latest \
           00.homepage/02.real_time/03.k8s_dashboard_frontend/src
+
       - name: Deploy to K8S
         run: |
           sed -i 's/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/g' 00.homepage/02.real_time/kubernetes/02.homepage-nginx__Deployment.yaml
@@ -78,3 +120,4 @@ jobs:
       - name: Restart nginx
         run: |
           kubectl rollout restart deployment nginx-deployment -n oci-devops
+
