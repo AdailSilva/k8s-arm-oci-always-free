@@ -1,0 +1,21 @@
+# ─────────────────────────────────────────────────────────────
+# Profile: dev
+# Use this profile when running the backend LOCALLY (outside the cluster).
+# Run with: java -jar -Dspring.profiles.active=dev k8s-dashboard-backend.jar
+# Or in IDE: set environment variable SPRING_PROFILES_ACTIVE=dev
+# ─────────────────────────────────────────────────────────────
+
+kubernetes:
+  in-cluster: false
+  # Leave empty to use ~/.kube/config automatically,
+  # or set the full path to your kubeconfig file.
+  #kubeconfig-path: ${KUBECONFIG_PATH:}
+  kubeconfig-path: /home/adailsilva/.kube/config
+
+cors:
+  allowed-origins:
+    - http://localhost:4200
+
+logging:
+  level:
+    br.com.adailsilva.k8sdashboard: DEBUG

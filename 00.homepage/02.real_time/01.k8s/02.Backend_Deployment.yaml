@@ -1,0 +1,73 @@
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-dashboard-backend
+  namespace: k8s-dashboard
+  labels:
+    app: k8s-dashboard-backend
+    app.kubernetes.io/name: k8s-dashboard-backend
+    app.kubernetes.io/version: "1.0.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-dashboard-backend
+  template:
+    metadata:
+      labels:
+        app: k8s-dashboard-backend
+    spec:
+      # Uses the ServiceAccount with read-only RBAC permissions
+      serviceAccountName: k8s-dashboard-backend
+
+      # Run on ARM64 workers
+      nodeSelector:
+        kubernetes.io/arch: arm64
+
+      containers:
+        - name: backend
+          # Replace with your OCI Registry image path
+          image: gru.ocir.io/<DOCKER_OBJECT_STORAGE_NAMESPACE>/k8s-dashboard-backend_platform_linux-arm64:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+
+          env:
+            - name: K8S_IN_CLUSTER
+              value: "true"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+            # Allow all origins in production (adjust as needed)
+            - name: CORS_ALLOWED_ORIGINS
+              value: "https://k8s.adailsilva.com.br"
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          readinessProbe:
+            httpGet:
+              path: /api/k8s/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+
+      imagePullSecrets:
+        - name: oci-registry-secret

@@ -1,0 +1,44 @@
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: k8s-dashboard-ingress
+  namespace: k8s-dashboard
+  labels:
+    app: k8s-dashboard
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - dashboard.adailsilva.com.br   # ← Substitua pelo seu subdomínio.
+      secretName: k8s-dashboard-tls
+  rules:
+    - host: dashboard.adailsilva.com.br   # ← Substitua pelo seu subdomínio.
+      http:
+        paths:
+          # Frontend — Angular SPA (raiz)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: k8s-dashboard-frontend-service
+                port:
+                  number: 80
+
+          # Backend API — rotas /api/* vão direto para o Spring Boot
+          # O NGINX frontend também faz proxy de /api/, mas este
+          # Ingress garante o roteamento correto pelo IngressController
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: k8s-dashboard-backend-service
+                port:
+                  number: 8080

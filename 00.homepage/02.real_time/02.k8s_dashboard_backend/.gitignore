@@ -1,0 +1,42 @@
+# ─────────────────────────────────────────────────────────────
+# .gitignore — 02.k8s_dashboard_backend (Spring Boot / Maven)
+# ─────────────────────────────────────────────────────────────
+
+# Maven build output
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# VS Code
+.vscode/
+
+# Maven Wrapper
+.mvn/timing.properties
+.mvn/wrapper/MavenWrapperDownloader.java
+
+# Local environment overrides — nunca versionar!
+application-local.yml
+application-local.yaml
+application-dev-local.yml

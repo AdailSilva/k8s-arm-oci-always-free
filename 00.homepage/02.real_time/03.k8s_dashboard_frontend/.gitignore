@@ -1,0 +1,28 @@
+# ─────────────────────────────────────────────────────────────
+# .gitignore — 03.k8s_dashboard_frontend (Angular 19)
+# ─────────────────────────────────────────────────────────────
+
+# Compiled output
+dist/
+tmp/
+out-tsc/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Angular cache
+.angular/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Misc
+.DS_Store
+Thumbs.db
+
+# Env local overrides — nunca versionar!
+src/environments/environment.local.ts

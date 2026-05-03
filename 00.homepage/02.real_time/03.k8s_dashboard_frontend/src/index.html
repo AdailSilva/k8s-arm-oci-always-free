@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>k8s-dashboard · AdailSilva</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <script>
+    // Animated grid canvas — runs before Angular boots so background is instant
+    (function () {
+      function initGrid() {
+        const canvas = document.getElementById('grid-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        let t = 0;
+
+        function resize() {
+          canvas.width  = window.innerWidth;
+          canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        function draw() {
+          const W = canvas.width, H = canvas.height;
+          ctx.clearRect(0, 0, W, H);
+          t += 0.003;
+
+          // Grid lines
+          const spacing = 50;
+          ctx.strokeStyle = 'rgba(0,229,255,0.04)';
+          ctx.lineWidth = 1;
+          for (let x = 0; x < W; x += spacing) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+          }
+          for (let y = 0; y < H; y += spacing) {
+            ctx.beginPath();
+            ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+          }
+
+          // Floating dots
+          for (let i = 0; i < 6; i++) {
+            const x = W * ((i * 0.17 + t * 0.02) % 1);
+            const y = H * (0.3 + 0.4 * Math.sin(t + i * 1.1));
+            const r = 80 + 40 * Math.sin(t * 0.5 + i);
+            const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, 'rgba(0,229,255,0.04)');
+            g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g;
+            ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+          }
+
+          requestAnimationFrame(draw);
+        }
+        draw();
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initGrid);
+      } else {
+        initGrid();
+      }
+    })();
+  </script>
+</head>
+<body>
+  <canvas id="grid-canvas" style="position:fixed;inset:0;z-index:0;opacity:0.4;pointer-events:none"></canvas>
+  <app-root></app-root>
+</body>
+</html>

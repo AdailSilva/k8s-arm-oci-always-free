@@ -1,0 +1,80 @@
+# Useful Commands:
+
+chmod +x 01.deploy_homepage-nginx_script.sh
+bash 01.deploy_homepage-nginx_script.sh
+
+chmod +x 02.destroy_homepage-nginx_script.sh
+bash 02.destroy_homepage-nginx_script.sh
+
+
+
+# Port Forward
+
+## Context - Example:
+
+# Port Forward
+
+## Context - Example:
+
+Pod: nginx-deployment-59dd79bdb9-b72t6
+Service: nginx-service
+Namespace: oci-devops
+
+## Porta do container:
+kubectl port-forward pod/nginx-deployment-59dd79bdb9-b72t6 8080:80 -n oci-devops
+
+
+
+## Build & Push da imagem (Docker Hub)
+
+### Login Docker Hub
+
+docker login
+docker login -u "adailsilva" -p "[PASSWORD]" https://docker.io/
+
+docker build -t adailsilva/homepage-80_platform_linux-arm64:latest .
+docker push adailsilva/homepage-80_platform_linux-arm64:latest
+
+
+docker images
+
+
+
+## Build & Push da imagem (Oracle Cloud Infrastructure)
+
+### Login Oracle Cloud Infrastructure
+docker login -u griszz3l82u1/adail101@hotmail.com -p "[PASSWORD]" gru.ocir.io
+docker login -u griszz3l82u1/adail101@hotmail.com -p "[PASSWORD]" https://gru.ocir.io/
+
+# Ativar QEMU com suporte a arm64
+# Execute o seguinte comando apenas uma vez:
+docker run --privileged --rm tonistiigi/binfmt --install all
+
+
+cd /home/adailsilva/Apps/OracleCloud/k8s-on-arm-oci-always-free/00.homepage/
+
+docker buildx build \
+  --platform linux/arm64 \
+  -t gru.ocir.io/griszz3l82u1/homepage-80_platform_linux-arm64:latest \
+  --no-cache --push .
+
+
+docker buildx build --platform 'linux/arm64' --tag gru.ocir.io/griszz3l82u1/homepage-80_platform_linux-arm64:latest --no-cache . 
+docker buildx build --platform 'linux/arm64' --tag gru.ocir.io/griszz3l82u1/homepage-80_platform_linux-arm64:latest --no-cache --push .
+
+
+docker images
+
+
+
+## Deploy no Kubernetes
+kubectl apply -f 01.create__Namespace.yaml
+
+
+kubectl create secret docker-registry oci-registry-secret --docker-server=gru.ocir.io --docker-username='griszz3l82u1/adail101@hotmail.com' --docker-password='[PASSWORD]' --docker-email='adail101@hotmail.com' -n oci-devops
+
+kubectl create secret docker-registry oci-registry-secret --docker-server=gru.ocir.io --docker-username='griszz3l82u1/Default/adail101@hotmail.com' --docker-password='[PASSWORD]' --docker-email='adail101@hotmail.com' -n oci-devops
+
+kubectl apply -f 02.homepage__Deployment.yaml
+
+

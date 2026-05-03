@@ -1,0 +1,80 @@
+
+---
+
+# ─────────────────────────────────────────────────────────────
+# RBAC — read-only access to the Kubernetes API
+#
+# The Spring Boot backend runs with this ServiceAccount, giving
+# it permission to LIST and GET all resources needed by the
+# dashboard — without any write access.
+# ─────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-dashboard-backend
+  namespace: k8s-dashboard
+  labels:
+    app.kubernetes.io/name: k8s-dashboard-backend
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-dashboard-readonly
+  labels:
+    app.kubernetes.io/name: k8s-dashboard
+rules:
+  # Core resources
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - pods
+      - services
+      - endpoints
+      - namespaces
+      - persistentvolumes
+      - persistentvolumeclaims
+      - events
+    verbs: ["get", "list", "watch"]
+
+  # Apps resources
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - daemonsets
+      - statefulsets
+      - replicasets
+    verbs: ["get", "list", "watch"]
+
+  # Networking
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+      - ingressclasses
+    verbs: ["get", "list", "watch"]
+
+  # Metrics API (Metrics Server)
+  - apiGroups: ["metrics.k8s.io"]
+    resources:
+      - nodes
+      - pods
+    verbs: ["get", "list"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-dashboard-readonly-binding
+  labels:
+    app.kubernetes.io/name: k8s-dashboard
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8s-dashboard-readonly
+subjects:
+  - kind: ServiceAccount
+    name: k8s-dashboard-backend
+    namespace: k8s-dashboard

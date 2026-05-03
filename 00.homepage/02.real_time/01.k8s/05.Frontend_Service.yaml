@@ -1,0 +1,19 @@
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-dashboard-frontend-service
+  namespace: k8s-dashboard
+  labels:
+    app: k8s-dashboard-frontend
+spec:
+  selector:
+    app: k8s-dashboard-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+  type: ClusterIP

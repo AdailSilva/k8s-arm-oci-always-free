@@ -51,7 +51,7 @@ docker login -u griszz3l82u1/adail101@hotmail.com -p "[PASSWORD]" https://gru.oc
 docker run --privileged --rm tonistiigi/binfmt --install all
 
 
-cd /home/adailsilva/Apps/OracleCloud/01.k8s-on-arm-oci-always-free_standart/00.homepage
+cd /home/adailsilva/Apps/OracleCloud/k8s-on-arm-oci-always-free/00.homepage/
 
 docker buildx build \
   --platform linux/arm64 \

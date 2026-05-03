@@ -1,0 +1,42 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: k8s-dashboard-backend
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+# ── Kubernetes client ────────────────────────────────────────
+kubernetes:
+  # true  → uses ServiceAccount token (when running inside the cluster)
+  # false → uses kubeconfig file (for local development)
+  in-cluster: ${K8S_IN_CLUSTER:true}
+  #kubeconfig-path: ${KUBECONFIG_PATH:}
+  kubeconfig-path: /home/adailsilva/.kube/config
+
+# ── CORS ─────────────────────────────────────────────────────
+cors:
+  allowed-origins:
+    - http://localhost:4200
+    - https://k8s.adailsilva.com.br
+
+# ── Actuator ────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# ── Logging ─────────────────────────────────────────────────
+logging:
+  level:
+    br.com.adailsilva.k8sdashboard: INFO
+    io.kubernetes.client: WARN
