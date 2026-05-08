@@ -17,7 +17,7 @@ on:
         required: false
         default: 'minor'
       target:
-        description: 'O que deployar: backend, frontend ou ambos'
+        description: 'Deploy: Back-End and Front-End'
         required: false
         default: 'ambos'
 
