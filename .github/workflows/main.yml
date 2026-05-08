@@ -166,12 +166,8 @@ jobs:
 
       - name: Aplicar infraestrutura base (Namespace, RBAC, Services, Ingress)
         run: |
-          # Substitui o namespace em todos os YAMLs de infra de uma vez
           sed -i 's/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/g' \
             00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml
-          sed -i 's/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/g' \
-            00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml
-          # Aplica os recursos de infra em ordem (idempotente: cria na 1ª vez, atualiza nas demais)
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/00.Namespace.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/01.RBAC.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/03.Backend_Service.yaml
