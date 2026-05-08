@@ -17,21 +17,56 @@ on:
         required: false
         default: 'minor'
       target:
-        description: 'Deploy: Back-End and Front-End'
+        description: 'Deploy: backend and frontend'
         required: false
         default: 'ambos'
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JOB: BACKEND (Spring Boot)
-# Disparado quando há alterações em 02.k8s_dashboard_backend/
+# JOB: DETECT – descobre quais paths mudaram e expõe outputs para os jobs
+# seguintes. Em workflow_dispatch usa o input `target` para simular a decisão.
 # ─────────────────────────────────────────────────────────────────────────────
 jobs:
+  detect:
+    name: Detectar alterações
+    runs-on: ubuntu-latest
+    outputs:
+      backend:  ${{ steps.filter.outputs.backend  }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filtrar paths alterados
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - '00.homepage/02.real_time/02.k8s_dashboard_backend/**'
+            frontend:
+              - '00.homepage/02.real_time/03.k8s_dashboard_frontend/**'
+
+      # Em workflow_dispatch sobrescreve os outputs conforme o input `target`
+      - name: Sobrescrever outputs (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TARGET="${{ github.event.inputs.target }}"
+          if [ "$TARGET" == "backend" ] || [ "$TARGET" == "ambos" ]; then
+            echo "backend=true"  >> $GITHUB_OUTPUT
+          fi
+          if [ "$TARGET" == "frontend" ] || [ "$TARGET" == "ambos" ]; then
+            echo "frontend=true" >> $GITHUB_OUTPUT
+          fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB: BACKEND (Spring Boot)
+# Disparado quando o job detect sinaliza backend=true
+# ─────────────────────────────────────────────────────────────────────────────
   backend:
     name: Backend – Spring Boot
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_dispatch' && (github.event.inputs.target == 'backend' || github.event.inputs.target == 'ambos') ||
-      (github.event_name == 'push' && contains(toJson(github.event.commits.*.modified + github.event.commits.*.added + github.event.commits.*.removed), '00.homepage/02.real_time/02.k8s_dashboard_backend'))
+    needs: detect
+    if: needs.detect.outputs.backend == 'true'
 
     steps:
       - name: Checkout
@@ -170,14 +205,13 @@ jobs:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB: FRONTEND (Angular)
-# Disparado quando há alterações em 03.k8s_dashboard_frontend/
+# Disparado quando o job detect sinaliza frontend=true
 # ─────────────────────────────────────────────────────────────────────────────
   frontend:
     name: Frontend – Angular
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_dispatch' && (github.event.inputs.target == 'frontend' || github.event.inputs.target == 'ambos') ||
-      (github.event_name == 'push' && contains(toJson(github.event.commits.*.modified + github.event.commits.*.added + github.event.commits.*.removed), '00.homepage/02.real_time/03.k8s_dashboard_frontend'))
+    needs: detect
+    if: needs.detect.outputs.frontend == 'true'
 
     steps:
       - name: Checkout
