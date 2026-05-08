@@ -17,7 +17,7 @@ on:
         required: false
         default: 'minor'
       target:
-        description: 'Deploy: backend and frontend'
+        description: 'O que deployar: backend, frontend ou ambos'
         required: false
         default: 'ambos'
 
@@ -164,10 +164,22 @@ jobs:
             -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-backend_platform_linux-arm64:latest \
             00.homepage/02.real_time/02.k8s_dashboard_backend
 
-      - name: Deploy Backend no K8S
+      - name: Aplicar infraestrutura base (Namespace, RBAC, Services, Ingress)
         run: |
+          # Substitui o namespace em todos os YAMLs de infra de uma vez
           sed -i 's/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/g' \
             00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml
+          sed -i 's/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/g' \
+            00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml
+          # Aplica os recursos de infra em ordem (idempotente: cria na 1ª vez, atualiza nas demais)
+          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/00.Namespace.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/01.RBAC.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/03.Backend_Service.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/05.Frontend_Service.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/06.Ingress.yaml
+
+      - name: Deploy Backend no K8S
+        run: |
           kubectl apply -f 00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml -n k8s-dashboard
 
       - name: Restart Backend Deployment
@@ -210,8 +222,11 @@ jobs:
   frontend:
     name: Frontend – Angular
     runs-on: ubuntu-latest
-    needs: detect
-    if: needs.detect.outputs.frontend == 'true'
+    needs: [detect, backend]
+    if: |
+      always() &&
+      needs.detect.outputs.frontend == 'true' &&
+      (needs.backend.result == 'success' || needs.backend.result == 'skipped')
 
     steps:
       - name: Checkout
