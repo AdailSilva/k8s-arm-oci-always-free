@@ -18,7 +18,7 @@ import { K8sService } from '../../../../core/models/k8s.models';
             <tr>
               <td class="name">{{ svc.name }}</td>
               <td class="dim">{{ svc.namespace }}</td>
-              <td><span class="pill type-{{ svc.type?.toLowerCase() }}">{{ svc.type }}</span></td>
+              <td><span class="pill type-{{ svc.type.toLowerCase() }}">{{ svc.type }}</span></td>
               <td class="dim">{{ svc.clusterIp }}</td>
               <td class="dim small">{{ formatPorts(svc) }}</td>
               <td class="dim">{{ svc.age }}</td>

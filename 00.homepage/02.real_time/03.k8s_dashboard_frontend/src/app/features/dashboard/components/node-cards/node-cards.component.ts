@@ -38,7 +38,7 @@ import { NodeInfo } from '../../../../core/models/k8s.models';
             </div>
           </div>
 
-          <div class="node-meta">{{ node.architecture ?? '' }} · {{ node.containerRuntime?.split('/')[0] ?? '' }}</div>
+          <div class="node-meta">{{ node.architecture ?? '' }} · {{ getRuntime(node) }}</div>
         </div>
       }
       @if (!nodes.length) {
@@ -73,4 +73,10 @@ import { NodeInfo } from '../../../../core/models/k8s.models';
 })
 export class NodeCardsComponent {
   @Input() nodes: NodeInfo[] = [];
+
+  getRuntime(node: NodeInfo): string {
+    const parts = node.containerRuntime?.split('/');
+    return parts ? parts[0] : '';
+  }
+
 }

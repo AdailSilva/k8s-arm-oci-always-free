@@ -1,11 +1,10 @@
 import { Component, Input, computed, signal } from '@angular/core';
-import { NgClass } from '@angular/common';
 import { ClusterSummary, NodeInfo } from '../../../../core/models/k8s.models';
 
 @Component({
   selector: 'app-metrics-strip',
   standalone: true,
-  imports: [NgClass],
+  imports: [],
   template: `
     <div class="metrics-strip">
       @for (m of metrics(); track m.label) {
@@ -26,7 +25,7 @@ import { ClusterSummary, NodeInfo } from '../../../../core/models/k8s.models';
       background: #0d1f3c;
       border-top: 1px solid #0d1f3c;
       border-bottom: 1px solid #0d1f3c;
-      margin-top: 60px;
+      margin-top: 0;
     }
     .metric {
       background: #080f1e;

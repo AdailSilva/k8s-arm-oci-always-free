@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
-import { AsyncPipe, NgClass, NgFor, NgIf }     from '@angular/common';
 import { FormsModule }                          from '@angular/forms';
 import { Subject, takeUntil }                   from 'rxjs';
 import { KubernetesService }                    from '../../../core/services/kubernetes.service';
@@ -16,7 +15,7 @@ import { ClusterSummary, K8sNamespace, NodeInfo, Pod, K8sService, K8sIngress } f
   selector: 'app-dashboard-page',
   standalone: true,
   imports: [
-    AsyncPipe, NgClass, NgFor, NgIf, FormsModule,
+    FormsModule,
     ClusterCanvasComponent, TerminalComponent, NodeCardsComponent,
     PodsTableComponent, MetricsStripComponent, IngressTableComponent,
     ServicesTableComponent,

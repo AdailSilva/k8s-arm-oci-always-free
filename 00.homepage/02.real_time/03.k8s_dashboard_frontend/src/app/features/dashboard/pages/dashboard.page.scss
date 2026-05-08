@@ -25,6 +25,51 @@ $cond    : 'Barlow Condensed', sans-serif;
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+  background: $black;
+  color: $text;
+  min-height: 100vh;
+}
+
+// Efeito glitch no hero title
+.glitch {
+  position: relative;
+  display: inline-block;
+  &::before,
+  &::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0; left: 0;
+    color: inherit;
+  }
+  &::before {
+    clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
+    transform: translate(-3px, 0);
+    opacity: 0;
+    color: $cyan;
+    animation: glitch-top 3s infinite linear;
+  }
+  &::after {
+    clip-path: polygon(0 60%, 100% 60%, 100% 100%, 0 100%);
+    transform: translate(3px, 0);
+    opacity: 0;
+    color: $red;
+    animation: glitch-bot 3s infinite linear;
+  }
+}
+@keyframes glitch-top {
+  0%, 89%, 100% { transform: translate(-3px, 0);             opacity: 0; }
+  90%           {                                             opacity: 0.8; }
+  92%           { transform: translate(3px, -2px) skewX(2deg); opacity: 0.8; }
+  94%           { transform: translate(-4px, 1px);            opacity: 0; }
+}
+@keyframes glitch-bot {
+  0%, 89%, 100% { transform: translate(3px, 0);               opacity: 0; }
+  91%           {                                              opacity: 0.8; }
+  93%           { transform: translate(-3px, 2px) skewX(-2deg); opacity: 0.8; }
+  95%           { transform: translate(4px, -1px);             opacity: 0; }
+}
+
 // Scan-line overlay
 body::after {
   content: '';
@@ -51,6 +96,7 @@ body::after {
   min-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr auto;
+  zoom: 1.30;
 }
 
 // ─── TOP BAR ────────────────────────────────────────────────────
@@ -109,17 +155,17 @@ body::after {
 .hero {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  padding: 60px 32px 40px; text-align: center;
+  padding: 10px 32px 0; text-align: center;
 }
 
 .hero-eyebrow {
   font-family: $mono; font-size: 11px; color: $cyan;
-  letter-spacing: 0.3em; text-transform: uppercase; margin-bottom: 20px;
+  letter-spacing: 0.3em; text-transform: uppercase; margin-bottom: 4px;
   animation: fadeUp 0.6s ease forwards 0.2s; opacity: 0;
 }
 
 .hero-title {
-  font-family: $cond; font-size: clamp(52px, 10vw, 110px);
+  font-family: $cond; font-size: clamp(36px, 7vw, 72px);
   font-weight: 900; line-height: 0.9; letter-spacing: -0.02em;
   color: #fff; margin-bottom: 8px;
   animation: fadeUp 0.7s ease forwards 0.4s; opacity: 0;
@@ -139,7 +185,7 @@ body::after {
 
 .hero-sub {
   font-family: $mono; font-size: 13px; color: $dim;
-  margin-top: 20px; letter-spacing: 0.05em;
+  margin-top: 18px; letter-spacing: 0.05em;
   animation: fadeUp 0.7s ease forwards 0.6s; opacity: 0;
   em { color: $cyan2; font-style: normal; }
 }
@@ -150,7 +196,7 @@ body::after {
 }
 
 .cluster-vis {
-  width: 100%; max-width: 700px; margin: 40px auto 0;
+  width: 100%; max-width: 700px; margin: 8px auto 0;
   animation: fadeUp 0.8s ease forwards 0.8s; opacity: 0;
 }
 
@@ -233,5 +279,5 @@ body::after {
   .dual-panel { grid-template-columns: 1fr; }
   .topbar-right .status-dot { display: none; }
   .topbar { padding: 12px 16px; }
-  .hero { padding: 40px 16px 30px; }
+  .hero { padding: 0 16px; }
 }

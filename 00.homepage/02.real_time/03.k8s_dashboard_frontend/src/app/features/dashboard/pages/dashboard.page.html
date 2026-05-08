@@ -45,13 +45,12 @@
 
   <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
   <main>
-
-    <!-- HERO -->
     <section class="hero">
-      <div class="hero-eyebrow">Oracle Cloud Infrastructure · ARM · Always Free</div>
+      <div class="hero-eyebrow">Oracle Cloud Infrastructure · Kubernetes Engine</div>
       <h1 class="hero-title">
-        <span class="glow">k8s</span>
-        <span class="line2">kubernetes cluster · real-time</span>
+        <span class="glitch" data-text="ADAIL">ADAIL</span>
+        <span class="glow"> SILVA</span>
+        <span class="line2">KUBERNETES CLUSTER</span>
       </h1>
       <p class="hero-sub">
         <em>{{ summary()?.totalNodes ?? '–' }}</em> nodes ·
@@ -59,8 +58,11 @@
         <em>{{ summary()?.totalServices ?? '–' }}</em> services ·
         <em>{{ summary()?.totalNamespaces ?? '–' }}</em> namespaces
       </p>
+      <p class="hero-sub">
+        <em>oci-devops</em> namespace &nbsp;·&nbsp; <em>nginx ingress</em> &nbsp;·&nbsp; <em>cert-manager</em> &nbsp;·&nbsp; <em>letsencrypt</em>
+      </p>
 
-      <!-- Cluster canvas animation -->
+      <!-- Cluster network visualization -->
       <div class="cluster-vis">
         <app-cluster-canvas [nodes]="nodes()" />
       </div>
@@ -74,7 +76,7 @@
       <label class="ns-label">NAMESPACE</label>
       <select class="ns-select"
               [value]="selectedNs()"
-              (change)="onNamespaceChange(($event.target as HTMLSelectElement).value)">
+              (change)="onNamespaceChange($any($event.target).value)">
         <option value="">all namespaces</option>
         @for (ns of namespaceNames(); track ns) {
           @if (ns !== '') {
