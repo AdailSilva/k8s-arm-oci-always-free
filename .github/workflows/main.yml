@@ -1,42 +1,60 @@
 # Conteúdo para pipeline do GitHub Actions na raíz do projeto.
-## .github/workflows/main.yaml
+## .github/workflows/main.yml
 
-name: CI/CD
+name: CI/CD – k8s Dashboard
+
 on:
   push:
     branches:
       - master
     paths:
-      - '00.homepage/01.static/index.html'
+      - '00.homepage/02.real_time/02.k8s_dashboard_backend/**'
+      - '00.homepage/02.real_time/03.k8s_dashboard_frontend/**'
   workflow_dispatch:
     inputs:
       version_type:
         description: 'Tipo de versão: minor (padrão) ou major'
         required: false
         default: 'minor'
+      target:
+        description: 'O que deployar: backend, frontend ou ambos'
+        required: false
+        default: 'ambos'
 
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB: BACKEND (Spring Boot)
+# Disparado quando há alterações em 02.k8s_dashboard_backend/
+# ─────────────────────────────────────────────────────────────────────────────
 jobs:
-  build:
+  backend:
+    name: Backend – Spring Boot
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && (github.event.inputs.target == 'backend' || github.event.inputs.target == 'ambos') ||
+      (github.event_name == 'push' && contains(toJson(github.event.commits.*.modified + github.event.commits.*.added + github.event.commits.*.removed), '00.homepage/02.real_time/02.k8s_dashboard_backend'))
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_PAT }}
 
-      # ─── VERSIONAMENTO ────────────────────────────────────────────────────────
-      - name: Calcular próxima versão
+      # ─── VERSIONAMENTO ──────────────────────────────────────────────────────
+      - name: Calcular próxima versão (backend)
         id: version
         run: |
-          LATEST=$(git tag --list '[0-9]*.[0-9]*' | sort -V | tail -1)
+          PREFIX="backend"
+          LATEST=$(git tag --list "${PREFIX}-[0-9]*.[0-9]*" | sort -V | tail -1)
 
           if [ -z "$LATEST" ]; then
-            LATEST="0.0"
+            LATEST="${PREFIX}-0.0"
           fi
 
-          MAJOR=$(echo "$LATEST" | cut -d. -f1)
-          MINOR=$(echo "$LATEST" | cut -d. -f2)
+          # Extrai só a parte numérica
+          NUMS=${LATEST#${PREFIX}-}
+          MAJOR=$(echo "$NUMS" | cut -d. -f1)
+          MINOR=$(echo "$NUMS" | cut -d. -f2)
 
           if [ "${{ github.event.inputs.version_type }}" == "major" ]; then
             NEW_VERSION="$((MAJOR + 1)).0"
@@ -44,30 +62,32 @@ jobs:
             NEW_VERSION="$MAJOR.$((MINOR + 1))"
           fi
 
-          echo "Nova versão: $NEW_VERSION"
+          FULL_TAG="${PREFIX}-${NEW_VERSION}"
+          echo "Nova versão: $FULL_TAG"
           echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "FULL_TAG=$FULL_TAG"  >> $GITHUB_OUTPUT
 
-      - name: Criar tag Git com a nova versão
+      - name: Criar tag Git (backend)
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git tag ${{ steps.version.outputs.VERSION }}
-          git push origin ${{ steps.version.outputs.VERSION }}
-      # ──────────────────────────────────────────────────────────────────────────
+          git tag ${{ steps.version.outputs.FULL_TAG }}
+          git push origin ${{ steps.version.outputs.FULL_TAG }}
+      # ────────────────────────────────────────────────────────────────────────
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
         with:
           install: true
 
       - name: Install OCI CLI
         run: |
           mkdir ~/.oci
-          echo "${{ secrets.OCI_CONFIG }}" > ~/.oci/config
+          echo "${{ secrets.OCI_CONFIG }}"   > ~/.oci/config
           echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/key.pem
           curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
           chmod +x install.sh
@@ -86,11 +106,11 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" > /tmp/.kube/config
           echo "KUBECONFIG=/tmp/.kube/config" >> $GITHUB_ENV
 
-      - name: Currently running services
-        run: kubectl get pods -n oci-devops
+      - name: Pods em execução (antes do deploy)
+        run: kubectl get pods -n k8s-dashboard
 
-      - name: Login to Docker registry
-        uses: docker/login-action@v1
+      - name: Login no Docker Registry (OCI)
+        uses: docker/login-action@v3
         with:
           registry: ${{ secrets.DOCKER_URL }}
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -99,32 +119,34 @@ jobs:
       - name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
 
-      - name: Build
+      - name: Build & Push – Backend
         run: |
           docker build \
-          --push \
-          --platform linux/amd64,linux/arm64 \
-          -f 00.homepage/01.static/Dockerfile \
-          -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
-          -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:latest \
-          00.homepage/01.static
+            --push \
+            --platform linux/amd64,linux/arm64 \
+            -f 00.homepage/02.real_time/02.k8s_dashboard_backend/Dockerfile \
+            -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-backend_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
+            -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-backend_platform_linux-arm64:latest \
+            00.homepage/02.real_time/02.k8s_dashboard_backend
 
-      - name: Deploy to K8S
+      - name: Deploy Backend no K8S
         run: |
-          sed -i 's/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/g' 00.homepage/01.static/kubernetes/02.homepage-nginx__Deployment.yaml
-          kubectl apply -f 00.homepage/01.static/kubernetes/02.homepage-nginx__Deployment.yaml -n oci-devops
+          sed -i 's/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/g' \
+            00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml
+          kubectl apply -f 00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml -n k8s-dashboard
 
-      - name: Restart nginx
-        run: |
-          kubectl rollout restart deployment nginx-deployment -n oci-devops
+      - name: Restart Backend Deployment
+        run: kubectl rollout restart deployment k8s-dashboard-backend -n k8s-dashboard
 
-      # ─── LIMPEZA DE IMAGENS SEM TAG ───────────────────────────────────────────
-      - name: Limpar imagens unknown do OCI Registry
+      - name: Aguardar rollout do Backend
+        run: kubectl rollout status deployment/k8s-dashboard-backend -n k8s-dashboard --timeout=120s
+
+      # ─── LIMPEZA DE IMAGENS SEM TAG (backend) ───────────────────────────────
+      - name: Limpar imagens unknown do OCI Registry (backend)
         run: |
-          # Busca todas as imagens do repositório
           IMAGE_IDS=$(oci artifacts container image list \
             --compartment-id ${{ secrets.OCI_COMPARTMENT_ID }} \
-            --repository-name homepage-80_platform_linux-arm64 \
+            --repository-name k8s-dashboard-backend_platform_linux-arm64 \
             --lifecycle-state AVAILABLE \
             --all \
             --query 'data.items[*].{"id":id,"name":"display-name"}' \
@@ -143,4 +165,149 @@ jobs:
             done
             echo "Limpeza concluída."
           fi
-      # ──────────────────────────────────────────────────────────────────────────
+      # ────────────────────────────────────────────────────────────────────────
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB: FRONTEND (Angular)
+# Disparado quando há alterações em 03.k8s_dashboard_frontend/
+# ─────────────────────────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend – Angular
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && (github.event.inputs.target == 'frontend' || github.event.inputs.target == 'ambos') ||
+      (github.event_name == 'push' && contains(toJson(github.event.commits.*.modified + github.event.commits.*.added + github.event.commits.*.removed), '00.homepage/02.real_time/03.k8s_dashboard_frontend'))
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+
+      # ─── VERSIONAMENTO ──────────────────────────────────────────────────────
+      - name: Calcular próxima versão (frontend)
+        id: version
+        run: |
+          PREFIX="frontend"
+          LATEST=$(git tag --list "${PREFIX}-[0-9]*.[0-9]*" | sort -V | tail -1)
+
+          if [ -z "$LATEST" ]; then
+            LATEST="${PREFIX}-0.0"
+          fi
+
+          NUMS=${LATEST#${PREFIX}-}
+          MAJOR=$(echo "$NUMS" | cut -d. -f1)
+          MINOR=$(echo "$NUMS" | cut -d. -f2)
+
+          if [ "${{ github.event.inputs.version_type }}" == "major" ]; then
+            NEW_VERSION="$((MAJOR + 1)).0"
+          else
+            NEW_VERSION="$MAJOR.$((MINOR + 1))"
+          fi
+
+          FULL_TAG="${PREFIX}-${NEW_VERSION}"
+          echo "Nova versão: $FULL_TAG"
+          echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "FULL_TAG=$FULL_TAG"  >> $GITHUB_OUTPUT
+
+      - name: Criar tag Git (frontend)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ steps.version.outputs.FULL_TAG }}
+          git push origin ${{ steps.version.outputs.FULL_TAG }}
+      # ────────────────────────────────────────────────────────────────────────
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      - name: Install OCI CLI
+        run: |
+          mkdir ~/.oci
+          echo "${{ secrets.OCI_CONFIG }}"   > ~/.oci/config
+          echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/key.pem
+          curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
+          chmod +x install.sh
+          ./install.sh --accept-all-defaults
+          echo "/home/runner/bin" >> $GITHUB_PATH
+          exec -l $SHELL
+          oci setup repair-file-permissions --file /home/runner/.oci/config
+          oci setup repair-file-permissions --file /home/runner/.oci/key.pem
+
+      - name: Install kubectl
+        run: |
+          mkdir /tmp/.kube
+          curl -L -O "https://dl.k8s.io/release/v1.22.4/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          echo "${{ secrets.KUBECONFIG }}" > /tmp/.kube/config
+          echo "KUBECONFIG=/tmp/.kube/config" >> $GITHUB_ENV
+
+      - name: Pods em execução (antes do deploy)
+        run: kubectl get pods -n k8s-dashboard
+
+      - name: Login no Docker Registry (OCI)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.DOCKER_URL }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Available platforms
+        run: echo ${{ steps.buildx.outputs.platforms }}
+
+      - name: Build & Push – Frontend
+        run: |
+          docker build \
+            --push \
+            --platform linux/amd64,linux/arm64 \
+            -f 00.homepage/02.real_time/03.k8s_dashboard_frontend/Dockerfile \
+            -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-frontend_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
+            -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-frontend_platform_linux-arm64:latest \
+            00.homepage/02.real_time/03.k8s_dashboard_frontend
+
+      - name: Deploy Frontend no K8S
+        run: |
+          sed -i 's/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/g' \
+            00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml
+          kubectl apply -f 00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml -n k8s-dashboard
+
+      - name: Restart Frontend Deployment
+        run: kubectl rollout restart deployment k8s-dashboard-frontend -n k8s-dashboard
+
+      - name: Aguardar rollout do Frontend
+        run: kubectl rollout status deployment/k8s-dashboard-frontend -n k8s-dashboard --timeout=120s
+
+      # ─── LIMPEZA DE IMAGENS SEM TAG (frontend) ──────────────────────────────
+      - name: Limpar imagens unknown do OCI Registry (frontend)
+        run: |
+          IMAGE_IDS=$(oci artifacts container image list \
+            --compartment-id ${{ secrets.OCI_COMPARTMENT_ID }} \
+            --repository-name k8s-dashboard-frontend_platform_linux-arm64 \
+            --lifecycle-state AVAILABLE \
+            --all \
+            --query 'data.items[*].{"id":id,"name":"display-name"}' \
+            --raw-output | \
+            jq -r '.[] | select(.name | test("unknown")) | .id')
+
+          if [ -z "$IMAGE_IDS" ]; then
+            echo "Nenhuma imagem unknown encontrada."
+          else
+            echo "Deletando imagens unknown..."
+            for IMAGE_ID in $IMAGE_IDS; do
+              echo "  → Deletando: $IMAGE_ID"
+              oci artifacts container image delete \
+                --image-id "$IMAGE_ID" \
+                --force
+            done
+            echo "Limpeza concluída."
+          fi
+      # ────────────────────────────────────────────────────────────────────────
