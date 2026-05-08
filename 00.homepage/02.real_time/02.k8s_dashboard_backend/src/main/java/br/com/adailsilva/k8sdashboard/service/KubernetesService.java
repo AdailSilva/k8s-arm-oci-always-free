@@ -1,12 +1,32 @@
 package br.com.adailsilva.k8sdashboard.service;
 
-import br.com.adailsilva.k8sdashboard.dto.*;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import java.io.IOException;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
+import br.com.adailsilva.k8sdashboard.dto.ClusterSummaryDto;
+import br.com.adailsilva.k8sdashboard.dto.IngressDto;
+import br.com.adailsilva.k8sdashboard.dto.IngressPathDto;
+import br.com.adailsilva.k8sdashboard.dto.IngressRuleDto;
+import br.com.adailsilva.k8sdashboard.dto.NamespaceDto;
+import br.com.adailsilva.k8sdashboard.dto.NodeDto;
+import br.com.adailsilva.k8sdashboard.dto.PodDto;
+import br.com.adailsilva.k8sdashboard.dto.PortDto;
+import br.com.adailsilva.k8sdashboard.dto.ServiceDto;
 import io.kubernetes.client.custom.NodeMetrics;
 import io.kubernetes.client.custom.NodeMetricsList;
 import io.kubernetes.client.custom.Quantity;
@@ -14,20 +34,34 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.NetworkingV1Api;
-import io.kubernetes.client.openapi.models.*;
+import io.kubernetes.client.openapi.models.V1Container;
+import io.kubernetes.client.openapi.models.V1ContainerStatus;
+import io.kubernetes.client.openapi.models.V1HTTPIngressRuleValue;
+import io.kubernetes.client.openapi.models.V1Ingress;
+import io.kubernetes.client.openapi.models.V1IngressBackend;
+import io.kubernetes.client.openapi.models.V1IngressList;
+import io.kubernetes.client.openapi.models.V1IngressLoadBalancerStatus;
+import io.kubernetes.client.openapi.models.V1IngressRule;
+import io.kubernetes.client.openapi.models.V1IngressServiceBackend;
+import io.kubernetes.client.openapi.models.V1IngressSpec;
+import io.kubernetes.client.openapi.models.V1IngressStatus;
+import io.kubernetes.client.openapi.models.V1NamespaceList;
+import io.kubernetes.client.openapi.models.V1NamespaceStatus;
+import io.kubernetes.client.openapi.models.V1ObjectMeta;
+import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.V1PodSpec;
+import io.kubernetes.client.openapi.models.V1PodStatus;
+import io.kubernetes.client.openapi.models.V1Service;
+import io.kubernetes.client.openapi.models.V1ServiceBackendPort;
+import io.kubernetes.client.openapi.models.V1ServiceList;
+import io.kubernetes.client.openapi.models.V1ServiceSpec;
 import io.kubernetes.client.util.generic.GenericKubernetesApi;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.springframework.stereotype.Service;
-
-import java.io.IOException;
-import java.time.Duration;
-import java.time.OffsetDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -37,11 +71,6 @@ public class KubernetesService {
     private final CoreV1Api       coreV1Api;
     private final NetworkingV1Api networkingV1Api;
     private final ApiClient       apiClient;
-
-    // Gson sem CustomTypeAdapterFactory — ignora campos desconhecidos do K8s 1.31+
-    private static final Gson GSON = new GsonBuilder()
-            .setDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
-            .create();
 
     // ──────────────────────────────────────────────────────────────────────────
     // CLUSTER SUMMARY
@@ -100,7 +129,6 @@ public class KubernetesService {
         try {
             String basePath = apiClient.getBasePath();
             OkHttpClient http = apiClient.getHttpClient();
-            okhttp3.Authenticator auth = apiClient.getHttpClient().authenticator();
 
             Request.Builder builder = new Request.Builder()
                     .url(basePath + "/api/v1/nodes")
@@ -136,8 +164,6 @@ public class KubernetesService {
 
     private String extractBearerToken() {
         try {
-            // The ApiClient stores authentication headers — extract the token
-            List<okhttp3.Interceptor> interceptors = apiClient.getHttpClient().interceptors();
             // Fall back to reading the ServiceAccount token file directly
             java.nio.file.Path tokenPath = java.nio.file.Paths.get(
                     "/var/run/secrets/kubernetes.io/serviceaccount/token");

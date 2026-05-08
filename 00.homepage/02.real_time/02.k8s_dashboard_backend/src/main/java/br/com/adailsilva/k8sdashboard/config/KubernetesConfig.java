@@ -73,7 +73,7 @@ public class KubernetesConfig {
         // We prepend a TypeAdapterFactory that wraps every adapter's read() in a
         // try-catch, intercepting the exception before it reaches Spring MVC.
         JSON json = new JSON();
-        Gson original = json.getGson();
+        Gson original = JSON.getGson();
 
         TypeAdapterFactory suppressingFactory = new TypeAdapterFactory() {
             @Override
@@ -103,7 +103,7 @@ public class KubernetesConfig {
                 .registerTypeAdapterFactory(suppressingFactory)
                 .create();
 
-        json.setGson(patchedGson);
+        JSON.setGson(patchedGson);
         client.setJSON(json);
         // ─────────────────────────────────────────────────────────────────────────
 
