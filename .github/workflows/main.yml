@@ -323,10 +323,20 @@ jobs:
             -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-frontend_platform_linux-arm64:latest \
             00.homepage/02.real_time/03.k8s_dashboard_frontend
 
-      - name: Deploy Frontend no K8S
+      - name: Aplicar infraestrutura base (Namespace, RBAC, Services, Ingress)
         run: |
+          # Substitui o namespace no YAML de infra
           sed -i 's/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/g' \
             00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml
+          # Aplica os recursos de infra em ordem (idempotente: cria na 1ª vez, atualiza nas demais)
+          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/00.Namespace.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/01.RBAC.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/03.Backend_Service.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/05.Frontend_Service.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/06.Ingress.yaml
+
+      - name: Deploy Frontend no K8S
+        run: |
           kubectl apply -f 00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml -n k8s-dashboard
 
       - name: Restart Frontend Deployment
