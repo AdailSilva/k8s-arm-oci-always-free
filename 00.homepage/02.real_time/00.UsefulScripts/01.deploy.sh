@@ -6,8 +6,8 @@ set -euo pipefail
 
 NAMESPACE="k8s-dashboard"
 REGISTRY="gru.ocir.io"
-NAMESPACE_OCI="<DOCKER_OBJECT_STORAGE_NAMESPACE>"   # OCI Object Storage namespace
-DOCKER_USER="<seu_email>"
+NAMESPACE_OCI="<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>"   # OCI Object Storage namespace
+OCI_REGISTRY_USER="<seu_email>"
 PLATFORM="linux/arm64"
 
 echo ">>> [1/6] Applying namespace and RBAC..."
@@ -17,9 +17,9 @@ kubectl apply -f k8s/01-rbac.yaml
 echo ">>> [2/6] Creating OCI Registry pull secret..."
 kubectl create secret docker-registry oci-registry-secret \
   --docker-server="${REGISTRY}" \
-  --docker-username="${NAMESPACE_OCI}/${DOCKER_USER}" \
-  --docker-password="${DOCKER_PASSWORD}" \
-  --docker-email="${DOCKER_USER}" \
+  --docker-username="${NAMESPACE_OCI}/${OCI_REGISTRY_USER}" \
+  --docker-password="${OCI_REGISTRY_PASSWORD}" \
+  --docker-email="${OCI_REGISTRY_USER}" \
   -n "${NAMESPACE}" \
   --dry-run=client -o yaml | kubectl apply -f -
 

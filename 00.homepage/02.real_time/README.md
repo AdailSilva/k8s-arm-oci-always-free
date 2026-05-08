@@ -278,21 +278,21 @@ npm start
 ```bash
 # Autenticar no OCI Container Registry
 docker login \
-  -u '<DOCKER_OBJECT_STORAGE_NAMESPACE>/<seu_email>' \
+  -u '<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/<seu_email>' \
   -p '<auth_token>' \
   gru.ocir.io
 
 # ── Backend ────────────────────────────────────────────────────
 docker buildx build \
   --platform linux/arm64 \
-  -t gru.ocir.io/<DOCKER_OBJECT_STORAGE_NAMESPACE>/k8s-dashboard-backend_platform_linux-arm64:latest \
+  -t gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/k8s-dashboard-backend_platform_linux-arm64:latest \
   --no-cache --push \
   ./02.k8s_dashboard_backend
 
 # ── Frontend ───────────────────────────────────────────────────
 docker buildx build \
   --platform linux/arm64 \
-  -t gru.ocir.io/<DOCKER_OBJECT_STORAGE_NAMESPACE>/k8s-dashboard-frontend_platform_linux-arm64:latest \
+  -t gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/k8s-dashboard-frontend_platform_linux-arm64:latest \
   --no-cache --push \
   ./03.k8s_dashboard_frontend
 ```
@@ -320,8 +320,8 @@ cd 01.k8s/
 sed -i 's/dashboard.seudominio.com.br/dashboard.adailsilva.com.br/g' 06.Ingress.yaml
 
 # Namespace OCI (Object Storage Namespace)
-NAMESPACE_OCI="<DOCKER_OBJECT_STORAGE_NAMESPACE>"
-sed -i "s/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${NAMESPACE_OCI}/g" \
+NAMESPACE_OCI="<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>"
+sed -i "s/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/${NAMESPACE_OCI}/g" \
   02.Backend_Deployment.yaml \
   04.Frontend_Deployment.yaml
 ```
@@ -331,7 +331,7 @@ sed -i "s/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${NAMESPACE_OCI}/g" \
 ```bash
 kubectl create secret docker-registry oci-registry-secret \
   --docker-server=gru.ocir.io \
-  --docker-username='<DOCKER_OBJECT_STORAGE_NAMESPACE>/<seu_email>' \
+  --docker-username='<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/<seu_email>' \
   --docker-password='<auth_token>' \
   --docker-email='<seu_email>' \
   -n k8s-dashboard
@@ -358,7 +358,7 @@ cd 00.UsefulScripts/
 chmod +x 01.deploy.sh
 
 # Edite as variáveis no topo do script antes de executar
-DOCKER_PASSWORD='<auth_token>' bash 01.deploy.sh
+OCI_REGISTRY_PASSWORD='<auth_token>' bash 01.deploy.sh
 ```
 
 #### 5. Verificar o deploy
