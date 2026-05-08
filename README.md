@@ -313,8 +313,8 @@ O uso de `hostNetwork: true` nos pods é intencional e essencial: faz com que o 
 #### Imagens no OCI Container Registry
 
 ```
-gru.ocir.io/<DOCKER_OBJECT_STORAGE_NAMESPACE>/udp-health-check-server-1700_platform_linux-arm64:latest
-gru.ocir.io/<DOCKER_OBJECT_STORAGE_NAMESPACE>/udp-health-check-server-1710_platform_linux-arm64:latest
+gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/udp-health-check-server-1700_platform_linux-arm64:latest
+gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/udp-health-check-server-1710_platform_linux-arm64:latest
 ```
 
 #### Passo 1 — Build das imagens ARM64
@@ -326,7 +326,7 @@ Antes de implantar, as imagens precisam existir no OCI Container Registry.
 docker run --privileged --rm tonistiigi/binfmt --install all
 
 # Autenticar no OCI Container Registry
-docker login -u '<DOCKER_OBJECT_STORAGE_NAMESPACE>/<seu_email>' \
+docker login -u '<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/<seu_email>' \
              -p '<auth_token>' \
              gru.ocir.io
 
@@ -336,13 +336,13 @@ cd 02.udp_health_check-nlb_oci/
 # Build e push — imagem para a porta 1700
 docker buildx build \
   --platform linux/arm64 \
-  -t gru.ocir.io/<DOCKER_OBJECT_STORAGE_NAMESPACE>/udp-health-check-server-1700_platform_linux-arm64:latest \
+  -t gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/udp-health-check-server-1700_platform_linux-arm64:latest \
   --no-cache --push .
 
 # Build e push — imagem para a porta 1710
 docker buildx build \
   --platform linux/arm64 \
-  -t gru.ocir.io/<DOCKER_OBJECT_STORAGE_NAMESPACE>/udp-health-check-server-1710_platform_linux-arm64:latest \
+  -t gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/udp-health-check-server-1710_platform_linux-arm64:latest \
   --no-cache --push .
 ```
 
@@ -357,7 +357,7 @@ kubectl create namespace oci-devops --dry-run=client -o yaml | kubectl apply -f 
 # Criar o Secret de autenticação no namespace oci-devops
 kubectl create secret docker-registry oci-registry-secret \
   --docker-server=gru.ocir.io \
-  --docker-username='<DOCKER_OBJECT_STORAGE_NAMESPACE>/<seu_email>' \
+  --docker-username='<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/<seu_email>' \
   --docker-password='<auth_token>' \
   --docker-email='<seu_email>' \
   -n oci-devops
@@ -1395,10 +1395,10 @@ Todos os valores abaixo devem ser cadastrados em **Settings → Secrets and vari
 | `OCI_CONFIG` | Conteúdo completo do arquivo `~/.oci/config` | Gerado automaticamente ao configurar a OCI CLI (`oci setup config`) |
 | `OCI_KEY_FILE` | Conteúdo da chave privada OCI (`oci_api_key.pem`) | Arquivo gerado em `~/.oci/oci_api_key.pem` |
 | `KUBECONFIG` | Conteúdo do kubeconfig externo do cluster | Gerado pelo Terraform em `.terraform/.kube/config-external` após o `apply` |
-| `DOCKER_URL` | URL do OCI Container Registry | Ex: `gru.ocir.io` (varia por região) |
-| `DOCKER_USERNAME` | Username de autenticação no OCI Registry | Formato: `<namespace>/<seu_email>` — ex: `griszz3l82u1/adail101@hotmail.com` |
-| `DOCKER_PASSWORD` | Auth token do OCI Registry | Gerado em **OCI Console → Identity → Users → Auth Tokens → Generate Token** |
-| `DOCKER_OBJECT_STORAGE_NAMESPACE` | Namespace do OCI Object Storage | Encontrado em **OCI Console → Object Storage → Namespace** ou via `oci os ns get` |
+| `OCI_REGISTRY_URL` | URL do OCI Container Registry | Ex: `gru.ocir.io` (varia por região) |
+| `OCI_REGISTRY_USERNAME` | Username de autenticação no OCI Registry | Formato: `<namespace>/<seu_email>` — ex: `griszz3l82u1/adail101@hotmail.com` |
+| `OCI_REGISTRY_PASSWORD` | Auth token do OCI Registry | Gerado em **OCI Console → Identity → Users → Auth Tokens → Generate Token** |
+| `OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE` | Namespace do OCI Object Storage | Encontrado em **OCI Console → Object Storage → Namespace** ou via `oci os ns get` |
 | `GH_PAT` | Personal Access Token do GitHub com escopo `repo` | Gerado em **GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)** |
 | `OCI_COMPARTMENT_ID` | OCID do compartment onde o Container Registry está | Encontrado em **OCI Console → Identity & Security → Compartments** ou nos detalhes do repositório no Container Registry |
 
@@ -1436,7 +1436,7 @@ cat .terraform/.kube/config-external
 cat ~/.kube/config
 ```
 
-**`DOCKER_URL`** — URL do OCI Registry de acordo com a região:
+**`OCI_REGISTRY_URL`** — URL do OCI Registry de acordo com a região:
 
 | Região OCI | URL do Registry |
 |---|---|
@@ -1445,12 +1445,12 @@ cat ~/.kube/config
 | Phoenix (`us-phoenix-1`) | `phx.ocir.io` |
 | Frankfurt (`eu-frankfurt-1`) | `fra.ocir.io` |
 
-**`DOCKER_OBJECT_STORAGE_NAMESPACE`** — obtenha via OCI CLI:
+**`OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE`** — obtenha via OCI CLI:
 ```bash
 oci os ns get --query 'data' --raw-output
 ```
 
-**`DOCKER_PASSWORD` (Auth Token)** — gere no console OCI:
+**`OCI_REGISTRY_PASSWORD` (Auth Token)** — gere no console OCI:
 1. Acesse **Identity & Security → Users → (seu usuário)**
 2. Clique em **Auth Tokens → Generate Token**
 3. Copie o token gerado (ele é exibido apenas uma vez)
@@ -1501,14 +1501,14 @@ O step de **Build** usa o Docker Buildx para criar a imagem simultaneamente para
 ```bash
 docker build --push \
   --platform linux/amd64,linux/arm64 \
-  -t gru.ocir.io/<DOCKER_OBJECT_STORAGE_NAMESPACE>/homepage-80_platform_linux-arm64:latest \
+  -t gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/homepage-80_platform_linux-arm64:latest \
   app/.
 ```
 
-O step de **Deploy** substitui o placeholder `<DOCKER_OBJECT_STORAGE_NAMESPACE>` no manifesto com o valor real antes de aplicar:
+O step de **Deploy** substitui o placeholder `<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>` no manifesto com o valor real antes de aplicar:
 
 ```bash
-sed -i 's/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/g' \
+sed -i 's/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/g' \
   app/02.homepage-nginx__Deployment.yaml
 
 kubectl apply -f app/02.homepage-nginx__Deployment.yaml -n oci-devops
@@ -1528,7 +1528,7 @@ O workflow monitora mudanças em `app/**` e espera encontrar:
 app/
 ├── Dockerfile                          # FROM nginx:latest + index.html
 ├── index.html                          # Conteúdo da homepage
-└── 02.homepage-nginx__Deployment.yaml  # Manifesto com placeholder <DOCKER_OBJECT_STORAGE_NAMESPACE>
+└── 02.homepage-nginx__Deployment.yaml  # Manifesto com placeholder <OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>
 ```
 
 O manifesto de Deployment deve conter o placeholder que será substituído pelo pipeline:
@@ -1536,7 +1536,7 @@ O manifesto de Deployment deve conter o placeholder que será substituído pelo 
 ```yaml
 containers:
   - name: nginx
-    image: gru.ocir.io/<DOCKER_OBJECT_STORAGE_NAMESPACE>/homepage-80_platform_linux-arm64:latest
+    image: gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/homepage-80_platform_linux-arm64:latest
 ```
 
 ### Verificar a execução do pipeline
