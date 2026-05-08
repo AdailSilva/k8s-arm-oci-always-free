@@ -92,9 +92,9 @@ jobs:
       - name: Login to Docker registry
         uses: docker/login-action@v1
         with:
-          registry: ${{ secrets.DOCKER_URL }}
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ${{ secrets.OCI_REGISTRY_URL }}
+          username: ${{ secrets.OCI_REGISTRY_USERNAME }}
+          password: ${{ secrets.OCI_REGISTRY_PASSWORD }}
 
       - name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
@@ -105,13 +105,13 @@ jobs:
           --push \
           --platform linux/amd64,linux/arm64 \
           -f 00.homepage/01.static/Dockerfile \
-          -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
-          -t ${{ secrets.DOCKER_URL }}/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:latest \
+          -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
+          -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:latest \
           00.homepage/01.static
 
       - name: Deploy to K8S
         run: |
-          sed -i 's/<DOCKER_OBJECT_STORAGE_NAMESPACE>/${{ secrets.DOCKER_OBJECT_STORAGE_NAMESPACE }}/g' 00.homepage/01.static/kubernetes/02.homepage-nginx__Deployment.yaml
+          sed -i 's/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/g' 00.homepage/01.static/kubernetes/02.homepage-nginx__Deployment.yaml
           kubectl apply -f 00.homepage/01.static/kubernetes/02.homepage-nginx__Deployment.yaml -n oci-devops
 
       - name: Restart nginx
