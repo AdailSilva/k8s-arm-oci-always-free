@@ -20,7 +20,7 @@ RUN mvn package -DskipTests -B -q
 # ─────────────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jre-jammy
 
-LABEL maintainer="AdailSilva <adail101@hotmail.com>"
+LABEL maintainer="Adail Silva <adail101@hotmail.com>"
 LABEL org.opencontainers.image.title="k8s-dashboard-backend"
 LABEL org.opencontainers.image.description="Kubernetes Dashboard - Spring Boot Backend"
 
