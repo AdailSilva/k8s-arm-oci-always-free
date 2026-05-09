@@ -156,7 +156,8 @@ jobs:
 
       - name: Build & Push – Backend
         run: |
-          docker build \
+          docker buildx build \
+            --builder ${{ steps.buildx.outputs.name }} \
             --push \
             --platform linux/amd64,linux/arm64 \
             -f 00.homepage/02.real_time/02.k8s_dashboard_backend/Dockerfile \
@@ -324,7 +325,8 @@ jobs:
 
       - name: Build & Push – Frontend
         run: |
-          docker build \
+          docker buildx build \
+            --builder ${{ steps.buildx.outputs.name }} \
             --push \
             --platform linux/amd64,linux/arm64 \
             -f 00.homepage/02.real_time/03.k8s_dashboard_frontend/Dockerfile \
