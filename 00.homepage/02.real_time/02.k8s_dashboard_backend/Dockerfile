@@ -36,7 +36,7 @@ RUN chown -R appuser:appgroup /app
 
 USER appuser
 
-EXPOSE 8080
+EXPOSE 8081
 
 # Use in-cluster config by default
 ENV K8S_IN_CLUSTER=true
