@@ -1398,6 +1398,7 @@ Todos os valores abaixo devem ser cadastrados em **Settings → Secrets and vari
 | `OCI_REGISTRY_URL` | URL do OCI Container Registry | Ex: `gru.ocir.io` (varia por região) |
 | `OCI_REGISTRY_USERNAME` | Username de autenticação no OCI Registry | Formato: `<namespace>/<seu_email>` — ex: `griszz3l82u1/adail101@hotmail.com` |
 | `OCI_REGISTRY_PASSWORD` | Auth token do OCI Registry | Gerado em **OCI Console → Identity → Users → Auth Tokens → Generate Token** |
+| `OCI_REGISTRY_EMAIL` | E-mail da conta OCI | O mesmo e-mail usado no `OCI_REGISTRY_USERNAME` — ex: `adail101@hotmail.com` |
 | `OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE` | Namespace do OCI Object Storage | Encontrado em **OCI Console → Object Storage → Namespace** ou via `oci os ns get` |
 | `GH_PAT` | Personal Access Token do GitHub com escopo `repo` | Gerado em **GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)** |
 | `OCI_COMPARTMENT_ID` | OCID do compartment onde o Container Registry está | Encontrado em **OCI Console → Identity & Security → Compartments** ou nos detalhes do repositório no Container Registry |
@@ -1454,6 +1455,8 @@ oci os ns get --query 'data' --raw-output
 1. Acesse **Identity & Security → Users → (seu usuário)**
 2. Clique em **Auth Tokens → Generate Token**
 3. Copie o token gerado (ele é exibido apenas uma vez)
+
+**`OCI_REGISTRY_EMAIL`** — o mesmo e-mail da sua conta OCI, utilizado pelo Kubernetes ao criar o `imagePullSecret` (`oci-registry-secret`) para autenticar o pull de imagens privadas do OCI Container Registry. É o mesmo endereço que compõe a segunda parte do `OCI_REGISTRY_USERNAME` (ex: se o username é `griszz3l82u1/adail101@hotmail.com`, o e-mail é `adail101@hotmail.com`).
 
 **`GH_PAT` (Personal Access Token do GitHub)** — necessário para que o pipeline crie e faça push de tags Git de versionamento (ex: `0.1`, `0.2`, `1.0`) no repositório. O `GITHUB_TOKEN` padrão do Actions não tem permissão de escrita em tags, por isso é obrigatório criar um token pessoal:
 

@@ -142,7 +142,7 @@ jobs:
           echo "KUBECONFIG=/tmp/.kube/config" >> $GITHUB_ENV
 
       - name: Pods em execução (antes do deploy)
-        run: kubectl get pods -n k8s-dashboard
+        run: kubectl get pods -n k8s-dashboard || echo "Namespace ainda não existe"
 
       - name: Login no Docker Registry (OCI)
         uses: docker/login-action@v3
@@ -166,16 +166,29 @@ jobs:
 
       - name: Aplicar infraestrutura base (Namespace, RBAC, Services, Ingress)
         run: |
-          sed -i 's/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/g' \
-            00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml
+          # Aplica em ordem — Namespace DEVE ser o primeiro
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/00.Namespace.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/01.RBAC.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/03.Backend_Service.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/05.Frontend_Service.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/06.Ingress.yaml
 
+      - name: Criar/atualizar imagePullSecret do OCI Registry
+        run: |
+          kubectl create secret docker-registry oci-registry-secret \
+            --docker-server=${{ secrets.OCI_REGISTRY_URL }} \
+            --docker-username='${{ secrets.OCI_REGISTRY_USERNAME }}' \
+            --docker-password='${{ secrets.OCI_REGISTRY_PASSWORD }}' \
+            --docker-email='${{ secrets.OCI_REGISTRY_EMAIL }}' \
+            --namespace=k8s-dashboard \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy Backend no K8S
         run: |
+          sed -i 's|<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>|${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}|g' \
+            00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml
+          # Confirmar substituição (não deve aparecer a placeholder)
+          grep "image:" 00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml
           kubectl apply -f 00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml -n k8s-dashboard
 
       - name: Restart Backend Deployment
@@ -297,7 +310,7 @@ jobs:
           echo "KUBECONFIG=/tmp/.kube/config" >> $GITHUB_ENV
 
       - name: Pods em execução (antes do deploy)
-        run: kubectl get pods -n k8s-dashboard
+        run: kubectl get pods -n k8s-dashboard || echo "Namespace ainda não existe"
 
       - name: Login no Docker Registry (OCI)
         uses: docker/login-action@v3
@@ -321,18 +334,29 @@ jobs:
 
       - name: Aplicar infraestrutura base (Namespace, RBAC, Services, Ingress)
         run: |
-          # Substitui o namespace no YAML de infra
-          sed -i 's/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/g' \
-            00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml
-          # Aplica os recursos de infra em ordem (idempotente: cria na 1ª vez, atualiza nas demais)
+          # Aplica em ordem — garante Namespace mesmo quando backend foi skipped
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/00.Namespace.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/01.RBAC.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/03.Backend_Service.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/05.Frontend_Service.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/06.Ingress.yaml
 
+      - name: Criar/atualizar imagePullSecret do OCI Registry
+        run: |
+          kubectl create secret docker-registry oci-registry-secret \
+            --docker-server=${{ secrets.OCI_REGISTRY_URL }} \
+            --docker-username='${{ secrets.OCI_REGISTRY_USERNAME }}' \
+            --docker-password='${{ secrets.OCI_REGISTRY_PASSWORD }}' \
+            --docker-email='${{ secrets.OCI_REGISTRY_EMAIL }}' \
+            --namespace=k8s-dashboard \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy Frontend no K8S
         run: |
+          sed -i 's|<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>|${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}|g' \
+            00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml
+          # Confirmar substituição (não deve aparecer a placeholder)
+          grep "image:" 00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml
           kubectl apply -f 00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml -n k8s-dashboard
 
       - name: Restart Frontend Deployment
