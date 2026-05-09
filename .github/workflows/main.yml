@@ -116,8 +116,8 @@ jobs:
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v4
-        env:
-          BUILDX_BUILDER: container
+        with:
+          driver: docker-container
 
       - name: Install OCI CLI
         run: |
@@ -284,8 +284,8 @@ jobs:
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v4
-        env:
-          BUILDX_BUILDER: container
+        with:
+          driver: docker-container
 
       - name: Install OCI CLI
         run: |
