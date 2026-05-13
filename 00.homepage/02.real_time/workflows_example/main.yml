@@ -186,7 +186,9 @@ jobs:
 
       - name: Deploy Backend no K8S
         run: |
-          sed -i 's|<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>|${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}|g' \
+          sed -i \
+            -e 's|<OCI_REGISTRY_URL>|${{ secrets.OCI_REGISTRY_URL }}|g' \
+            -e 's|<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>|${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}|g' \
             00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml
           # Confirmar substituição (não deve aparecer a placeholder)
           grep "image:" 00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml
@@ -355,7 +357,9 @@ jobs:
 
       - name: Deploy Frontend no K8S
         run: |
-          sed -i 's|<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>|${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}|g' \
+          sed -i \
+            -e 's|<OCI_REGISTRY_URL>|${{ secrets.OCI_REGISTRY_URL }}|g' \
+            -e 's|<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>|${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}|g' \
             00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml
           # Confirmar substituição (não deve aparecer a placeholder)
           grep "image:" 00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml

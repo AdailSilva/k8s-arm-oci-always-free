@@ -26,7 +26,7 @@ spec:
       containers:
         - name: frontend
           # Replace with your OCI Registry image path
-          image: gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/k8s-dashboard-frontend_platform_linux-arm64:latest
+          image: <OCI_REGISTRY_URL>/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/k8s-dashboard-frontend_platform_linux-arm64:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 80
