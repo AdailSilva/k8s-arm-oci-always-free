@@ -23,7 +23,7 @@ kubernetes:
 cors:
   allowed-origins:
     - http://localhost:4200
-    - https://k8s.adailsilva.com.br
+    - https://dashboard.adailsilva.com.br
 
 # ── Actuator ────────────────────────────────────────────────
 management:
