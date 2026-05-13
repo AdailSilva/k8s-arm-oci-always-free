@@ -106,6 +106,78 @@ resource "oci_artifacts_container_repository" "k8s-dashboard-frontend_platform_l
 
 }
 
+# resource "oci_artifacts_container_repository" "chirpstack-consumer-backend_platform_linux-x86_64" {
+#   # Required
+#   compartment_id = var.compartment_id
+#   display_name   = "chirpstack-consumer-backend_platform_linux-x86_64"
+
+#   # Optional
+#   # defined_tags  = { "K8S.Apps" = "Free" }
+#   # freeform_tags = { "K8S" = "Free Apps" }
+#   is_immutable = false
+#   is_public    = false
+#   readme {
+#     # Required
+#     content = "Image repository with _**x86_64 architecture**_ for k8s-on-arm-oci-always-free Cluster."
+#     format  = "text/markdown" #"text/plain" # Supported formats are text/plain and text/markdown.
+#   }
+
+# }
+
+resource "oci_artifacts_container_repository" "chirpstack-consumer-backend_platform_linux-arm64" {
+  # Required
+  compartment_id = var.compartment_id
+  display_name   = "chirpstack-consumer-backend_platform_linux-arm64"
+
+  # Optional
+  # defined_tags  = { "K8S.Apps" = "Free" }
+  # freeform_tags = { "K8S" = "Free Apps" }
+  is_immutable = false
+  is_public    = false
+  readme {
+    # Required
+    content = "Image repository with _**arm64 architecture**_ for k8s-on-arm-oci-always-free Cluster."
+    format  = "text/markdown" #"text/plain" # Supported formats are text/plain and text/markdown.
+  }
+
+}
+
+# resource "oci_artifacts_container_repository" "chirpstack-consumer-frontend_platform_linux-x86_64" {
+#   # Required
+#   compartment_id = var.compartment_id
+#   display_name   = "chirpstack-consumer-frontend_platform_linux-x86_64"
+
+#   # Optional
+#   # defined_tags  = { "K8S.Apps" = "Free" }
+#   # freeform_tags = { "K8S" = "Free Apps" }
+#   is_immutable = false
+#   is_public    = false
+#   readme {
+#     # Required
+#     content = "Image repository with _**x86_64 architecture**_ for k8s-on-arm-oci-always-free Cluster."
+#     format  = "text/markdown" #"text/plain" # Supported formats are text/plain and text/markdown.
+#   }
+
+# }
+
+resource "oci_artifacts_container_repository" "chirpstack-consumer-frontend_platform_linux-arm64" {
+  # Required
+  compartment_id = var.compartment_id
+  display_name   = "chirpstack-consumer-frontend_platform_linux-arm64"
+
+  # Optional
+  # defined_tags  = { "K8S.Apps" = "Free" }
+  # freeform_tags = { "K8S" = "Free Apps" }
+  is_immutable = false
+  is_public    = false
+  readme {
+    # Required
+    content = "Image repository with _**arm64 architecture**_ for k8s-on-arm-oci-always-free Cluster."
+    format  = "text/markdown" #"text/plain" # Supported formats are text/plain and text/markdown.
+  }
+
+}
+
 # Namespace: oci-devops applications
 # resource "oci_artifacts_container_repository" "udp-health-check-server-1700_platform_linux-x86_64" {
 #   # Required
