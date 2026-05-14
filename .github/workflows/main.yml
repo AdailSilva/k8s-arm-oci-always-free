@@ -8,8 +8,8 @@ on:
     branches:
       - master
     paths:
-      - '00.homepage/02.real_time/02.k8s_dashboard_backend/**'
-      - '00.homepage/02.real_time/03.k8s_dashboard_frontend/**'
+      - '00.homepage/02.real_time/k8s_dashboard_backend/**'
+      - '00.homepage/02.real_time/k8s_dashboard_frontend/**'
   workflow_dispatch:
     inputs:
       version_type:
@@ -31,8 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      backend:  ${{ steps.filter.outputs.backend  }}
-      frontend: ${{ steps.filter.outputs.frontend }}
+      k8s_dashboard_backend:  ${{ steps.filter.outputs.k8s_dashboard_backend  }}
+      k8s_dashboard_frontend: ${{ steps.filter.outputs.k8s_dashboard_frontend }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -42,10 +42,10 @@ jobs:
         id: filter
         with:
           filters: |
-            backend:
-              - '00.homepage/02.real_time/02.k8s_dashboard_backend/**'
-            frontend:
-              - '00.homepage/02.real_time/03.k8s_dashboard_frontend/**'
+            k8s_dashboard_backend:
+              - '00.homepage/02.real_time/k8s_dashboard_backend/**'
+            k8s_dashboard_frontend:
+              - '00.homepage/02.real_time/k8s_dashboard_frontend/**'
 
       # Em workflow_dispatch sobrescreve os outputs conforme o input `target`
       - name: Sobrescrever outputs (workflow_dispatch)
@@ -63,12 +63,12 @@ jobs:
 # JOB: HOMEPAGE – BACKEND (Spring Boot)
 # Disparado quando o job detect sinaliza backend=true
 # ─────────────────────────────────────────────────────────────────────────────
-  backend:
+  k8s_dashboard_backend:
     name: HomePage – Backend (Spring Boot)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: detect
-    if: needs.detect.outputs.backend == 'true'
+    if: needs.detect.outputs.k8s_dashboard_backend == 'true'
 
     steps:
       - name: Checkout
@@ -78,10 +78,10 @@ jobs:
           token: ${{ secrets.GH_PAT }}
 
       # ─── VERSIONAMENTO ──────────────────────────────────────────────────────
-      - name: Calcular próxima versão (backend)
+      - name: Calcular próxima versão (k8s_dashboard_backend)
         id: version
         run: |
-          PREFIX="backend"
+          PREFIX="k8s-dashboard-backend"
           LATEST=$(git tag --list "${PREFIX}-[0-9]*.[0-9]*" | sort -V | tail -1)
 
           if [ -z "$LATEST" ]; then
@@ -104,7 +104,7 @@ jobs:
           echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "FULL_TAG=$FULL_TAG"  >> $GITHUB_OUTPUT
 
-      - name: Criar tag Git (backend)
+      - name: Criar tag Git (k8s-dashboard-backend)
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -156,25 +156,25 @@ jobs:
       - name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
 
-      - name: Build & Push – Backend
+      - name: Build & Push – K8S Dashboard Backend
         run: |
           docker buildx build \
             --builder ${{ steps.buildx.outputs.name }} \
             --push \
             --platform linux/amd64,linux/arm64 \
-            -f 00.homepage/02.real_time/02.k8s_dashboard_backend/Dockerfile \
+            -f 00.homepage/02.real_time/k8s_dashboard_backend/Dockerfile \
             -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-backend_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
             -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-backend_platform_linux-arm64:latest \
-            00.homepage/02.real_time/02.k8s_dashboard_backend
+            00.homepage/02.real_time/k8s_dashboard_backend
 
       - name: Aplicar infraestrutura base (Namespace, RBAC, Services, Ingress)
         run: |
           # Aplica em ordem — Namespace DEVE ser o primeiro
-          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/00.Namespace.yaml
-          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/01.RBAC.yaml
-          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/03.Backend_Service.yaml
-          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/05.Frontend_Service.yaml
-          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/06.Ingress.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/01.create__Namespace.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/02.homepage-nginx__RBAC.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/04.homepage-nginx__Backend_Service.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/06.homepage-nginx__Frontend_Service.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/09.homepage-nginx__Ingress.yaml
 
       - name: Criar/atualizar imagePullSecret do OCI Registry
         run: |
@@ -191,10 +191,10 @@ jobs:
           sed -i \
             -e 's|<OCI_REGISTRY_URL>|${{ secrets.OCI_REGISTRY_URL }}|g' \
             -e 's|<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>|${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}|g' \
-            00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml
+            00.homepage/02.real_time/kubernetes/03.homepage-nginx__Backend_Deployment.yaml
           # Confirmar substituição (não deve aparecer a placeholder)
-          grep "image:" 00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml
-          kubectl apply -f 00.homepage/02.real_time/01.k8s/02.Backend_Deployment.yaml -n k8s-dashboard
+          grep "image:" 00.homepage/02.real_time/kubernetes/03.homepage-nginx__Backend_Deployment.yaml
+          kubectl apply -f 00.homepage/02.real_time/kubernetes/03.homepage-nginx__Backend_Deployment.yaml -n k8s-dashboard
 
       - name: Restart Backend Deployment
         run: kubectl rollout restart deployment k8s-dashboard-backend -n k8s-dashboard
@@ -237,11 +237,11 @@ jobs:
     name: HomePage – Frontend (Angular)
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [detect, backend]
+    needs: [detect, k8s_dashboard_backend]
     if: |
       always() &&
-      needs.detect.outputs.frontend == 'true' &&
-      (needs.backend.result == 'success' || needs.backend.result == 'skipped')
+      needs.detect.outputs.k8s_dashboard_frontend == 'true' &&
+      (needs.k8s_dashboard_backend.result == 'success' || needs.k8s_dashboard_backend.result == 'skipped')
 
     steps:
       - name: Checkout
@@ -254,7 +254,7 @@ jobs:
       - name: Calcular próxima versão (frontend)
         id: version
         run: |
-          PREFIX="frontend"
+          PREFIX="k8s-dashboard-frontend"
           LATEST=$(git tag --list "${PREFIX}-[0-9]*.[0-9]*" | sort -V | tail -1)
 
           if [ -z "$LATEST" ]; then
@@ -276,7 +276,7 @@ jobs:
           echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "FULL_TAG=$FULL_TAG"  >> $GITHUB_OUTPUT
 
-      - name: Criar tag Git (frontend)
+      - name: Criar tag Git (k8s-dashboard-frontend)
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -328,25 +328,25 @@ jobs:
       - name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
 
-      - name: Build & Push – Frontend
+      - name: Build & Push – K8S Dashboard Frontend
         run: |
           docker buildx build \
             --builder ${{ steps.buildx.outputs.name }} \
             --push \
             --platform linux/amd64,linux/arm64 \
-            -f 00.homepage/02.real_time/03.k8s_dashboard_frontend/Dockerfile \
+            -f 00.homepage/02.real_time/k8s_dashboard_frontend/Dockerfile \
             -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-frontend_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
             -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-frontend_platform_linux-arm64:latest \
-            00.homepage/02.real_time/03.k8s_dashboard_frontend
+            00.homepage/02.real_time/k8s_dashboard_frontend
 
       - name: Aplicar infraestrutura base (Namespace, RBAC, Services, Ingress)
         run: |
           # Aplica em ordem — garante Namespace mesmo quando backend foi skipped
-          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/00.Namespace.yaml
-          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/01.RBAC.yaml
-          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/03.Backend_Service.yaml
-          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/05.Frontend_Service.yaml
-          kubectl apply --server-side -f 00.homepage/02.real_time/01.k8s/06.Ingress.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/01.create__Namespace.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/02.homepage-nginx__RBAC.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/04.homepage-nginx__Backend_Service.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/06.homepage-nginx__Frontend_Service.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/09.homepage-nginx__Ingress.yaml
 
       - name: Criar/atualizar imagePullSecret do OCI Registry
         run: |
@@ -363,10 +363,10 @@ jobs:
           sed -i \
             -e 's|<OCI_REGISTRY_URL>|${{ secrets.OCI_REGISTRY_URL }}|g' \
             -e 's|<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>|${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}|g' \
-            00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml
+            00.homepage/02.real_time/kubernetes/05.homepage-nginx__Frontend_Deployment.yaml
           # Confirmar substituição (não deve aparecer a placeholder)
-          grep "image:" 00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml
-          kubectl apply -f 00.homepage/02.real_time/01.k8s/04.Frontend_Deployment.yaml -n k8s-dashboard
+          grep "image:" 00.homepage/02.real_time/kubernetes/05.homepage-nginx__Frontend_Deployment.yaml
+          kubectl apply -f 00.homepage/02.real_time/kubernetes/05.homepage-nginx__Frontend_Deployment.yaml -n k8s-dashboard
 
       - name: Restart Frontend Deployment
         run: kubectl rollout restart deployment k8s-dashboard-frontend -n k8s-dashboard
