@@ -1,0 +1,17 @@
+${AnsiColor.WHITE}
+${AnsiColor.WHITE}      ___           ___           ___                       ___       ___                       ___       ___           ___     
+${AnsiColor.WHITE}     /\  \         /\  \         /\  \          ___        /\__\     /\  \          ___        /\__\     /\__\         /\  \    
+${AnsiColor.WHITE}    /::\  \       /::\  \       /::\  \        /\  \      /:/  /    /::\  \        /\  \      /:/  /    /:/  /        /::\  \   
+${AnsiColor.WHITE}   /:/\:\  \     /:/\:\  \     /:/\:\  \       \:\  \    /:/  /    /:/\ \  \       \:\  \    /:/  /    /:/  /        /:/\:\  \  
+${AnsiColor.WHITE}  /::\~\:\  \   /:/  \:\__\   /::\~\:\  \      /::\__\  /:/  /    _\:\~\ \  \      /::\__\  /:/  /    /:/__/  ___   /::\~\:\  \ 
+${AnsiColor.WHITE} /:/\:\ \:\__\ /:/__/ \:|__| /:/\:\ \:\__\  __/:/\/__/ /:/__/    /\ \:\ \ \__\  __/:/\/__/ /:/__/     |:|  | /\__\ /:/\:\ \:\__\
+${AnsiColor.RED} \/__\:\/:/  / \:\  \ /:/  / \/__\:\/:/  / /\/:/  /    \:\  \    \:\ \:\ \/__/ /\/:/  /    \:\  \     |:|  |/:/  / \/__\:\/:/  /
+${AnsiColor.RED}      \::/  /   \:\  /:/  /       \::/  /  \::/__/      \:\  \    \:\ \:\__\   \::/__/      \:\  \    |:|__/:/  /       \::/  / 
+${AnsiColor.RED}      /:/  /     \:\/:/  /        /:/  /    \:\__\       \:\  \    \:\/:/  /    \:\__\       \:\  \    \::::/__/        /:/  /  
+${AnsiColor.RED}     /:/  /       \::/__/        /:/  /      \/__/        \:\__\    \::/  /      \/__/        \:\__\    ~~~~           /:/  /   
+${AnsiColor.RED}     \/__/         ~~            \/__/                     \/__/     \/__/                     \/__/                   \/__/    
+${AnsiColor.RED}                                                                                                                     			
+${AnsiColor.DEFAULT}:: ${application.title} ${application.version} ::
+${AnsiColor.BRIGHT_BLUE}:: Chirpstack-v4 Consumer API ::
+${AnsiColor.BRIGHT_CYAN}:: AdailSilva-IoT 🤓 :: Running Spring Boot ${spring-boot.version} :: Startup profile ${AnsiColor.RED}--> (${AnsiColor.GREEN}${spring.profiles.active}${AnsiColor.RED}) ${AnsiColor.BRIGHT_CYAN}::
+${AnsiColor.BRIGHT_YELLOW}:: https://chirpstack-v4-consumer-api.adailsilva.com.br ::${AnsiColor.DEFAULT}
