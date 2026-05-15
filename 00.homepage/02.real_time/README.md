@@ -64,7 +64,7 @@ Ambas são servidas no mesmo domínio (`k8s.adailsilva.com.br`) via Ingress NGIN
     │   ├── 01.deploy.sh                # Build ARM64 + push OCI + kubectl apply
     │   └── 00.useful_commands.txt
     │
-    ├── 01.k8s/                         # Manifests Kubernetes
+    ├── kubernetes/                         # Manifests Kubernetes
     │   ├── 00.Namespace.yaml           # Namespace k8s-dashboard
     │   ├── 01.RBAC.yaml               # ServiceAccount + ClusterRole read-only
     │   ├── 02.Backend_Deployment.yaml  # Deployment Spring Boot
@@ -74,7 +74,7 @@ Ambas são servidas no mesmo domínio (`k8s.adailsilva.com.br`) via Ingress NGIN
     │   ├── 06.Ingress.yaml            # Ingress NGINX com TLS Let's Encrypt
     │   └── 07.Registry_Secret_README.txt
     │
-    ├── 02.k8s_dashboard_backend/       # Spring Boot 3.4 (Java 21)
+    ├── k8s_dashboard_backend/          # Spring Boot 3.4 (Java 21)
     │   ├── .gitignore                  # Ignora target/, .idea/, etc.
     │   ├── Dockerfile                  # Multi-stage build ARM64
     │   ├── pom.xml
@@ -98,7 +98,7 @@ Ambas são servidas no mesmo domínio (`k8s.adailsilva.com.br`) via Ingress NGIN
     │       └── service/
     │           └── KubernetesService.java     # Consulta a API K8s + Metrics Server
     │
-    └── 03.k8s_dashboard_frontend/      # Angular 19 (standalone components)
+    └── k8s_dashboard_frontend/         # Angular 19 (standalone components)
         ├── .gitignore                  # Ignora node_modules/, dist/, .angular/
         ├── Dockerfile                  # Multi-stage: Node build + NGINX serve
         ├── nginx.conf                  # SPA routing + proxy /api/ → backend
@@ -237,7 +237,7 @@ Navegador (Angular 19)
 #### Backend (Spring Boot)
 
 ```bash
-cd 02.k8s_dashboard_backend/
+cd k8s_dashboard_backend/
 
 # Usa ~/.kube/config automaticamente (fora do cluster)
 SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run
@@ -263,7 +263,7 @@ curl http://localhost:8080/api/k8s/namespaces                  | jq
 #### Frontend (Angular)
 
 ```bash
-cd 03.k8s_dashboard_frontend/
+cd k8s_dashboard_frontend/
 
 npm install
 npm start
@@ -287,14 +287,14 @@ docker buildx build \
   --platform linux/arm64 \
   -t gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/k8s-dashboard-backend_platform_linux-arm64:latest \
   --no-cache --push \
-  ./02.k8s_dashboard_backend
+  ./k8s_dashboard_backend
 
 # ── Frontend ───────────────────────────────────────────────────
 docker buildx build \
   --platform linux/arm64 \
   -t gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/k8s-dashboard-frontend_platform_linux-arm64:latest \
   --no-cache --push \
-  ./03.k8s_dashboard_frontend
+  ./k8s_dashboard_frontend
 ```
 
 ---
@@ -314,7 +314,7 @@ dashboard.adailsilva.com.br → <IP_DO_NLB>
 #### 2. Substituir os placeholders nos manifests
 
 ```bash
-cd 01.k8s/
+cd kubernetes/
 
 # Domínio
 sed -i 's/dashboard.seudominio.com.br/dashboard.adailsilva.com.br/g' 06.Ingress.yaml
@@ -340,7 +340,7 @@ kubectl create secret docker-registry oci-registry-secret \
 #### 4. Aplicar os manifests na ordem correta
 
 ```bash
-cd 01.k8s/
+cd kubernetes/
 
 kubectl apply -f 00.Namespace.yaml
 kubectl apply -f 01.RBAC.yaml
@@ -414,7 +414,7 @@ kubectl auth can-i list pods \
 # Deve retornar: yes
 
 # Se retornar "no", reaplicar o RBAC:
-kubectl apply -f 01.k8s/01.RBAC.yaml
+kubectl apply -f kubernetes/01.RBAC.yaml
 ```
 
 #### ❌ Métricas CPU/MEM aparecem como `–`
