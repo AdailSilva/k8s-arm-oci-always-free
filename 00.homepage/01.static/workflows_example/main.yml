@@ -7,7 +7,7 @@ on:
     branches:
       - master
     paths:
-      - '00.homepage/01.static/index.html'
+      - '00.homepage/01.static/**'
   workflow_dispatch:
     inputs:
       version_type:
