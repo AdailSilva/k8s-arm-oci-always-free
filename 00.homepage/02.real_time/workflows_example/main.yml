@@ -78,7 +78,7 @@ jobs:
           token: ${{ secrets.GH_PAT }}
 
       # ─── VERSIONAMENTO ──────────────────────────────────────────────────────
-      - name: Calcular próxima versão (k8s_dashboard_backend)
+      - name: Calcular próxima versão (k8s-dashboard-backend)
         id: version
         run: |
           PREFIX="k8s-dashboard-backend"
@@ -250,7 +250,7 @@ jobs:
           token: ${{ secrets.GH_PAT }}
 
       # ─── VERSIONAMENTO ──────────────────────────────────────────────────────
-      - name: Calcular próxima versão (frontend)
+      - name: Calcular próxima versão (k8s-dashboard-frontend)
         id: version
         run: |
           PREFIX="k8s-dashboard-frontend"
