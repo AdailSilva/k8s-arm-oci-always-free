@@ -78,7 +78,7 @@ jobs:
           token: ${{ secrets.GH_PAT }}
 
       # ─── VERSIONAMENTO ──────────────────────────────────────────────────────
-      - name: Calcular próxima versão (k8s_dashboard_backend)
+      - name: Calcular próxima versão (k8s-dashboard-backend)
         id: version
         run: |
           PREFIX="k8s-dashboard-backend"
@@ -173,7 +173,6 @@ jobs:
           kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/01.create__Namespace.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/02.homepage-nginx__RBAC.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/04.homepage-nginx__Backend_Service.yaml
-          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/06.homepage-nginx__Frontend_Service.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/09.homepage-nginx__Ingress.yaml
 
       - name: Criar/atualizar imagePullSecret do OCI Registry
@@ -251,7 +250,7 @@ jobs:
           token: ${{ secrets.GH_PAT }}
 
       # ─── VERSIONAMENTO ──────────────────────────────────────────────────────
-      - name: Calcular próxima versão (frontend)
+      - name: Calcular próxima versão (k8s-dashboard-frontend)
         id: version
         run: |
           PREFIX="k8s-dashboard-frontend"
@@ -344,7 +343,6 @@ jobs:
           # Aplica em ordem — garante Namespace mesmo quando backend foi skipped
           kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/01.create__Namespace.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/02.homepage-nginx__RBAC.yaml
-          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/04.homepage-nginx__Backend_Service.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/06.homepage-nginx__Frontend_Service.yaml
           kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/09.homepage-nginx__Ingress.yaml
 
