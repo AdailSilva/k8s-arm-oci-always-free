@@ -1,43 +1,97 @@
 # Conteúdo para pipeline do GitHub Actions na raíz do projeto.
-## .github/workflows/main.yaml
+## .github/workflows/main.yml
 
-name: CI/CD
+name: CI/CD – k8s Dashboard
+
 on:
   push:
     branches:
       - master
     paths:
-      - '00.homepage/01.static/**'
+      - '00.homepage/02.real_time/k8s_dashboard_backend/**'
+      - '00.homepage/02.real_time/k8s_dashboard_frontend/**'
   workflow_dispatch:
     inputs:
       version_type:
         description: 'Tipo de versão: minor (padrão) ou major'
         required: false
         default: 'minor'
+      target:
+        description: 'O que deployar: backend, frontend ou ambos'
+        required: false
+        default: 'ambos'
 
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB: DETECT – descobre quais paths mudaram e expõe outputs para os jobs
+# seguintes. Em workflow_dispatch usa o input `target` para simular a decisão.
+# ─────────────────────────────────────────────────────────────────────────────
 jobs:
-  build:
+  detect:
+    name: Detectar alterações
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
+    outputs:
+      k8s_dashboard_backend:  ${{ steps.filter.outputs.k8s_dashboard_backend  }}
+      k8s_dashboard_frontend: ${{ steps.filter.outputs.k8s_dashboard_frontend }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
+
+      - name: Filtrar paths alterados
+        uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            k8s_dashboard_backend:
+              - '00.homepage/02.real_time/k8s_dashboard_backend/**'
+            k8s_dashboard_frontend:
+              - '00.homepage/02.real_time/k8s_dashboard_frontend/**'
+
+      # Em workflow_dispatch sobrescreve os outputs conforme o input `target`
+      - name: Sobrescrever outputs (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TARGET="${{ github.event.inputs.target }}"
+          if [ "$TARGET" == "backend" ] || [ "$TARGET" == "ambos" ]; then
+            echo "backend=true"  >> $GITHUB_OUTPUT
+          fi
+          if [ "$TARGET" == "frontend" ] || [ "$TARGET" == "ambos" ]; then
+            echo "frontend=true" >> $GITHUB_OUTPUT
+          fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB: HOMEPAGE – BACKEND (Spring Boot)
+# Disparado quando o job detect sinaliza backend=true
+# ─────────────────────────────────────────────────────────────────────────────
+  k8s_dashboard_backend:
+    name: HomePage – Backend (Spring Boot)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: detect
+    if: needs.detect.outputs.k8s_dashboard_backend == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_PAT }}
 
-      # ─── VERSIONAMENTO ────────────────────────────────────────────────────────
-      - name: Calcular próxima versão
+      # ─── VERSIONAMENTO ──────────────────────────────────────────────────────
+      - name: Calcular próxima versão (k8s_dashboard_backend)
         id: version
         run: |
-          LATEST=$(git tag --list '[0-9]*.[0-9]*' | sort -V | tail -1)
+          PREFIX="k8s-dashboard-backend"
+          LATEST=$(git tag --list "${PREFIX}-[0-9]*.[0-9]*" | sort -V | tail -1)
 
           if [ -z "$LATEST" ]; then
-            LATEST="0.0"
+            LATEST="${PREFIX}-0.0"
           fi
 
-          MAJOR=$(echo "$LATEST" | cut -d. -f1)
-          MINOR=$(echo "$LATEST" | cut -d. -f2)
+          # Extrai só a parte numérica
+          NUMS=${LATEST#${PREFIX}-}
+          MAJOR=$(echo "$NUMS" | cut -d. -f1)
+          MINOR=$(echo "$NUMS" | cut -d. -f2)
 
           if [ "${{ github.event.inputs.version_type }}" == "major" ]; then
             NEW_VERSION="$((MAJOR + 1)).0"
@@ -45,30 +99,32 @@ jobs:
             NEW_VERSION="$MAJOR.$((MINOR + 1))"
           fi
 
-          echo "Nova versão: $NEW_VERSION"
+          FULL_TAG="${PREFIX}-${NEW_VERSION}"
+          echo "Nova versão: $FULL_TAG"
           echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "FULL_TAG=$FULL_TAG"  >> $GITHUB_OUTPUT
 
-      - name: Criar tag Git com a nova versão
+      - name: Criar tag Git (k8s-dashboard-backend)
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git tag ${{ steps.version.outputs.VERSION }}
-          git push origin ${{ steps.version.outputs.VERSION }}
-      # ──────────────────────────────────────────────────────────────────────────
+          git tag ${{ steps.version.outputs.FULL_TAG }}
+          git push origin ${{ steps.version.outputs.FULL_TAG }}
+      # ────────────────────────────────────────────────────────────────────────
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v4
         with:
-          install: true
+          driver: docker-container
 
       - name: Install OCI CLI
         run: |
           mkdir ~/.oci
-          echo "${{ secrets.OCI_CONFIG }}" > ~/.oci/config
+          echo "${{ secrets.OCI_CONFIG }}"   > ~/.oci/config
           echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/key.pem
           curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
           chmod +x install.sh
@@ -87,11 +143,11 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" > /tmp/.kube/config
           echo "KUBECONFIG=/tmp/.kube/config" >> $GITHUB_ENV
 
-      - name: Currently running services
-        run: kubectl get pods -n oci-devops
+      - name: Pods em execução (antes do deploy)
+        run: kubectl get pods -n k8s-dashboard || echo "Namespace ainda não existe"
 
-      - name: Login to Docker registry
-        uses: docker/login-action@v1
+      - name: Login no Docker Registry (OCI)
+        uses: docker/login-action@v4
         with:
           registry: ${{ secrets.OCI_REGISTRY_URL }}
           username: ${{ secrets.OCI_REGISTRY_USERNAME }}
@@ -100,32 +156,58 @@ jobs:
       - name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
 
-      - name: Build
+      - name: Build & Push – K8S Dashboard Backend
         run: |
-          docker build \
-          --push \
-          --platform linux/amd64,linux/arm64 \
-          -f 00.homepage/01.static/Dockerfile \
-          -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
-          -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:latest \
-          00.homepage/01.static
+          docker buildx build \
+            --builder ${{ steps.buildx.outputs.name }} \
+            --push \
+            --platform linux/amd64,linux/arm64 \
+            -f 00.homepage/02.real_time/k8s_dashboard_backend/Dockerfile \
+            -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-backend_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
+            -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-backend_platform_linux-arm64:latest \
+            00.homepage/02.real_time/k8s_dashboard_backend
 
-      - name: Deploy to K8S
+      - name: Aplicar infraestrutura base (Namespace, RBAC, Services, Ingress)
         run: |
-          sed -i 's/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/g' 00.homepage/01.static/kubernetes/02.homepage-nginx__Deployment.yaml
-          kubectl apply -f 00.homepage/01.static/kubernetes/02.homepage-nginx__Deployment.yaml -n oci-devops
+          # Aplica em ordem — Namespace DEVE ser o primeiro
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/01.create__Namespace.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/02.homepage-nginx__RBAC.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/04.homepage-nginx__Backend_Service.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/06.homepage-nginx__Frontend_Service.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/09.homepage-nginx__Ingress.yaml
 
-      - name: Restart nginx
+      - name: Criar/atualizar imagePullSecret do OCI Registry
         run: |
-          kubectl rollout restart deployment nginx-deployment -n oci-devops
+          kubectl create secret docker-registry oci-registry-secret \
+            --docker-server=${{ secrets.OCI_REGISTRY_URL }} \
+            --docker-username='${{ secrets.OCI_REGISTRY_USERNAME }}' \
+            --docker-password='${{ secrets.OCI_REGISTRY_PASSWORD }}' \
+            --docker-email='${{ secrets.OCI_REGISTRY_EMAIL }}' \
+            --namespace=k8s-dashboard \
+            --dry-run=client -o yaml | kubectl apply -f -
 
-      # ─── LIMPEZA DE IMAGENS SEM TAG ───────────────────────────────────────────
-      - name: Limpar imagens unknown do OCI Registry
+      - name: Deploy Backend no K8S
         run: |
-          # Busca todas as imagens do repositório
+          sed -i \
+            -e 's|<OCI_REGISTRY_URL>|${{ secrets.OCI_REGISTRY_URL }}|g' \
+            -e 's|<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>|${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}|g' \
+            00.homepage/02.real_time/kubernetes/03.homepage-nginx__Backend_Deployment.yaml
+          # Confirmar substituição (não deve aparecer a placeholder)
+          grep "image:" 00.homepage/02.real_time/kubernetes/03.homepage-nginx__Backend_Deployment.yaml
+          kubectl apply -f 00.homepage/02.real_time/kubernetes/03.homepage-nginx__Backend_Deployment.yaml -n k8s-dashboard
+
+      - name: Restart Backend Deployment
+        run: kubectl rollout restart deployment k8s-dashboard-backend -n k8s-dashboard
+
+      - name: Aguardar rollout do Backend
+        run: kubectl rollout status deployment/k8s-dashboard-backend -n k8s-dashboard --timeout=120s
+
+      # ─── LIMPEZA DE IMAGENS SEM TAG (backend) ───────────────────────────────
+      - name: Limpar imagens unknown do OCI Registry (backend)
+        run: |
           IMAGE_IDS=$(oci artifacts container image list \
             --compartment-id ${{ secrets.OCI_COMPARTMENT_ID }} \
-            --repository-name homepage-80_platform_linux-arm64 \
+            --repository-name k8s-dashboard-backend_platform_linux-arm64 \
             --lifecycle-state AVAILABLE \
             --all \
             --query 'data.items[*].{"id":id,"name":"display-name"}' \
@@ -144,4 +226,176 @@ jobs:
             done
             echo "Limpeza concluída."
           fi
-      # ──────────────────────────────────────────────────────────────────────────
+      # ────────────────────────────────────────────────────────────────────────
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB: HOMEPAGE – FRONTEND (Angular)
+# Disparado quando o job detect sinaliza frontend=true
+# ─────────────────────────────────────────────────────────────────────────────
+  frontend:
+    name: HomePage – Frontend (Angular)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [detect, k8s_dashboard_backend]
+    if: |
+      always() &&
+      needs.detect.outputs.k8s_dashboard_frontend == 'true' &&
+      (needs.k8s_dashboard_backend.result == 'success' || needs.k8s_dashboard_backend.result == 'skipped')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+
+      # ─── VERSIONAMENTO ──────────────────────────────────────────────────────
+      - name: Calcular próxima versão (frontend)
+        id: version
+        run: |
+          PREFIX="k8s-dashboard-frontend"
+          LATEST=$(git tag --list "${PREFIX}-[0-9]*.[0-9]*" | sort -V | tail -1)
+
+          if [ -z "$LATEST" ]; then
+            LATEST="${PREFIX}-0.0"
+          fi
+
+          NUMS=${LATEST#${PREFIX}-}
+          MAJOR=$(echo "$NUMS" | cut -d. -f1)
+          MINOR=$(echo "$NUMS" | cut -d. -f2)
+
+          if [ "${{ github.event.inputs.version_type }}" == "major" ]; then
+            NEW_VERSION="$((MAJOR + 1)).0"
+          else
+            NEW_VERSION="$MAJOR.$((MINOR + 1))"
+          fi
+
+          FULL_TAG="${PREFIX}-${NEW_VERSION}"
+          echo "Nova versão: $FULL_TAG"
+          echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "FULL_TAG=$FULL_TAG"  >> $GITHUB_OUTPUT
+
+      - name: Criar tag Git (k8s-dashboard-frontend)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ steps.version.outputs.FULL_TAG }}
+          git push origin ${{ steps.version.outputs.FULL_TAG }}
+      # ────────────────────────────────────────────────────────────────────────
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker-container
+
+      - name: Install OCI CLI
+        run: |
+          mkdir ~/.oci
+          echo "${{ secrets.OCI_CONFIG }}"   > ~/.oci/config
+          echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/key.pem
+          curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
+          chmod +x install.sh
+          ./install.sh --accept-all-defaults
+          echo "/home/runner/bin" >> $GITHUB_PATH
+          exec -l $SHELL
+          oci setup repair-file-permissions --file /home/runner/.oci/config
+          oci setup repair-file-permissions --file /home/runner/.oci/key.pem
+
+      - name: Install kubectl
+        run: |
+          mkdir /tmp/.kube
+          curl -L -O "https://dl.k8s.io/release/v1.22.4/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          echo "${{ secrets.KUBECONFIG }}" > /tmp/.kube/config
+          echo "KUBECONFIG=/tmp/.kube/config" >> $GITHUB_ENV
+
+      - name: Pods em execução (antes do deploy)
+        run: kubectl get pods -n k8s-dashboard || echo "Namespace ainda não existe"
+
+      - name: Login no Docker Registry (OCI)
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ secrets.OCI_REGISTRY_URL }}
+          username: ${{ secrets.OCI_REGISTRY_USERNAME }}
+          password: ${{ secrets.OCI_REGISTRY_PASSWORD }}
+
+      - name: Available platforms
+        run: echo ${{ steps.buildx.outputs.platforms }}
+
+      - name: Build & Push – K8S Dashboard Frontend
+        run: |
+          docker buildx build \
+            --builder ${{ steps.buildx.outputs.name }} \
+            --push \
+            --platform linux/amd64,linux/arm64 \
+            -f 00.homepage/02.real_time/k8s_dashboard_frontend/Dockerfile \
+            -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-frontend_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
+            -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/k8s-dashboard-frontend_platform_linux-arm64:latest \
+            00.homepage/02.real_time/k8s_dashboard_frontend
+
+      - name: Aplicar infraestrutura base (Namespace, RBAC, Services, Ingress)
+        run: |
+          # Aplica em ordem — garante Namespace mesmo quando backend foi skipped
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/01.create__Namespace.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/02.homepage-nginx__RBAC.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/04.homepage-nginx__Backend_Service.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/06.homepage-nginx__Frontend_Service.yaml
+          kubectl apply --server-side -f 00.homepage/02.real_time/kubernetes/09.homepage-nginx__Ingress.yaml
+
+      - name: Criar/atualizar imagePullSecret do OCI Registry
+        run: |
+          kubectl create secret docker-registry oci-registry-secret \
+            --docker-server=${{ secrets.OCI_REGISTRY_URL }} \
+            --docker-username='${{ secrets.OCI_REGISTRY_USERNAME }}' \
+            --docker-password='${{ secrets.OCI_REGISTRY_PASSWORD }}' \
+            --docker-email='${{ secrets.OCI_REGISTRY_EMAIL }}' \
+            --namespace=k8s-dashboard \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy Frontend no K8S
+        run: |
+          sed -i \
+            -e 's|<OCI_REGISTRY_URL>|${{ secrets.OCI_REGISTRY_URL }}|g' \
+            -e 's|<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>|${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}|g' \
+            00.homepage/02.real_time/kubernetes/05.homepage-nginx__Frontend_Deployment.yaml
+          # Confirmar substituição (não deve aparecer a placeholder)
+          grep "image:" 00.homepage/02.real_time/kubernetes/05.homepage-nginx__Frontend_Deployment.yaml
+          kubectl apply -f 00.homepage/02.real_time/kubernetes/05.homepage-nginx__Frontend_Deployment.yaml -n k8s-dashboard
+
+      - name: Restart Frontend Deployment
+        run: kubectl rollout restart deployment k8s-dashboard-frontend -n k8s-dashboard
+
+      - name: Aguardar rollout do Frontend
+        run: kubectl rollout status deployment/k8s-dashboard-frontend -n k8s-dashboard --timeout=120s
+
+      # ─── LIMPEZA DE IMAGENS SEM TAG (frontend) ──────────────────────────────
+      - name: Limpar imagens unknown do OCI Registry (frontend)
+        run: |
+          IMAGE_IDS=$(oci artifacts container image list \
+            --compartment-id ${{ secrets.OCI_COMPARTMENT_ID }} \
+            --repository-name k8s-dashboard-frontend_platform_linux-arm64 \
+            --lifecycle-state AVAILABLE \
+            --all \
+            --query 'data.items[*].{"id":id,"name":"display-name"}' \
+            --raw-output | \
+            jq -r '.[] | select(.name | test("unknown")) | .id')
+
+          if [ -z "$IMAGE_IDS" ]; then
+            echo "Nenhuma imagem unknown encontrada."
+          else
+            echo "Deletando imagens unknown..."
+            for IMAGE_ID in $IMAGE_IDS; do
+              echo "  → Deletando: $IMAGE_ID"
+              oci artifacts container image delete \
+                --image-id "$IMAGE_ID" \
+                --force
+            done
+            echo "Limpeza concluída."
+          fi
+      # ────────────────────────────────────────────────────────────────────────
