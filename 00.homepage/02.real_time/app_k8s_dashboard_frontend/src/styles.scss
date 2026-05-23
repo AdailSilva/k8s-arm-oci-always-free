@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #02040a;
+  color: #b0c4de;
+  font-family: 'Barlow', sans-serif;
+  font-size: 14px;
+  overflow-x: hidden;
+  cursor: crosshair;
+
+  // Scan-line overlay
+  &::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.08) 2px,
+      rgba(0, 0, 0, 0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+}
+
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #02040a; }
+::-webkit-scrollbar-thumb { background: #0d1f3c; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #00e5ff33; }
+
+::selection {
+  background: rgba(0, 229, 255, 0.2);
+  color: #00e5ff;
+}

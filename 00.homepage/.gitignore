@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────────────────────
+# .gitignore — 00.homepage
+# Cobre tanto a versão estática (01.static) quanto
+# o dashboard em tempo real (02.real_time)
+# ─────────────────────────────────────────────────────────────
+
+# ── Java / Maven ──────────────────────────────────────────────
+**/target/
+**/*.class
+**/*.jar
+**/*.war
+**/*.ear
+**/hs_err_pid*
+**/replay_pid*
+
+# ── Node / Angular ────────────────────────────────────────────
+**/node_modules/
+**/dist/
+**/.angular/
+**/npm-debug.log*
+**/yarn-error.log*
+**/.npm
+
+# ── IDEs ──────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.classpath
+.project
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# ── Sistema operacional ───────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ── Variáveis e segredos ──────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+**/application-local.yml
+**/application-local.yaml
+
+# ── Docker ────────────────────────────────────────────────────
+**/.dockerignore
+
+# ── Logs ──────────────────────────────────────────────────────
+*.log
+logs/

@@ -1,0 +1,58 @@
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-k8s-dashboard-frontend
+  namespace: k8s-dashboard
+  labels:
+    app: app-k8s-dashboard-frontend
+    app.kubernetes.io/name: app-k8s-dashboard-frontend
+    app.kubernetes.io/version: "1.0.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-k8s-dashboard-frontend
+  template:
+    metadata:
+      labels:
+        app: app-k8s-dashboard-frontend
+    spec:
+      nodeSelector:
+        kubernetes.io/arch: arm64
+
+      containers:
+        - name: frontend
+          # Replace with your OCI Registry image path
+          image: <OCI_REGISTRY_URL>/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/app-k8s-dashboard-frontend_platform_linux-arm64:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              protocol: TCP
+
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30
+
+      imagePullSecrets:
+        - name: oci-registry-secret
