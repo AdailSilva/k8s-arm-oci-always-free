@@ -1904,6 +1904,12 @@ metadata:
     nginx.ingress.kubernetes.io/hsts: "true"
     nginx.ingress.kubernetes.io/hsts-max-age: "63072000"
     nginx.ingress.kubernetes.io/hsts-include-subdomains: "true"
+    # nginx.ingress.kubernetes.io/enable-cors: "true"
+    # nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.adailsilva.com.br"
+    # nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"
+    # nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, Accept, Origin, Cache-Control"
+    # nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    # nginx.ingress.kubernetes.io/cors-max-age: "3600"
   labels:
     app: <nome-do-servico>-ingress
 spec:
