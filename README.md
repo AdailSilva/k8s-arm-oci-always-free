@@ -1505,7 +1505,7 @@ O step de **Build** usa o Docker Buildx para criar a imagem simultaneamente para
 
 ```bash
 docker build --push \
-  #--platform linux/amd64,linux/arm64 \
+  #--platform linux/amd64,linux/arm64
   --platform linux/arm64 \
   -t gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/homepage-80_platform_linux-arm64:latest \
   app/.
