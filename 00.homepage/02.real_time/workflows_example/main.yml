@@ -131,13 +131,19 @@ jobs:
           mkdir -p ~/.oci
           echo "${{ secrets.OCI_CONFIG }}"   > ~/.oci/config
           echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/key.pem
-          curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
-          chmod +x install.sh
-          ./install.sh --accept-all-defaults
-          echo "/home/runner/bin" >> $GITHUB_PATH
-          exec -l $SHELL
-          oci setup repair-file-permissions --file /home/runner/.oci/config
-          oci setup repair-file-permissions --file /home/runner/.oci/key.pem
+
+          if ! command -v oci &> /dev/null; then
+            echo "OCI CLI não encontrado, instalando..."
+            curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
+            chmod +x install.sh
+            ./install.sh --accept-all-defaults
+          else
+            echo "OCI CLI já instalado: $(oci --version)"
+          fi
+          # echo "/home/runner/bin" >> $GITHUB_PATH
+          echo "/home/ubuntu/bin" >> $GITHUB_PATH
+          oci setup repair-file-permissions --file ~/.oci/config
+          oci setup repair-file-permissions --file ~/.oci/key.pem
 
       - name: Install kubectl
         run: |
@@ -303,13 +309,19 @@ jobs:
           mkdir -p ~/.oci
           echo "${{ secrets.OCI_CONFIG }}"   > ~/.oci/config
           echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/key.pem
-          curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
-          chmod +x install.sh
-          ./install.sh --accept-all-defaults
-          echo "/home/runner/bin" >> $GITHUB_PATH
-          exec -l $SHELL
-          oci setup repair-file-permissions --file /home/runner/.oci/config
-          oci setup repair-file-permissions --file /home/runner/.oci/key.pem
+
+          if ! command -v oci &> /dev/null; then
+            echo "OCI CLI não encontrado, instalando..."
+            curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
+            chmod +x install.sh
+            ./install.sh --accept-all-defaults
+          else
+            echo "OCI CLI já instalado: $(oci --version)"
+          fi
+          # echo "/home/runner/bin" >> $GITHUB_PATH
+          echo "/home/ubuntu/bin" >> $GITHUB_PATH
+          oci setup repair-file-permissions --file ~/.oci/config
+          oci setup repair-file-permissions --file ~/.oci/key.pem
 
       - name: Install kubectl
         run: |
