@@ -1504,8 +1504,8 @@ Adicione o OCID como Secret no repositório com o nome `OCI_COMPARTMENT_ID`.
 O step de **Build** usa o Docker Buildx para criar a imagem simultaneamente para `linux/amd64` e `linux/arm64`, fazendo push direto ao OCI Registry:
 
 ```bash
+# Plataformas disponíveis: linux/amd64, linux/arm64
 docker build --push \
-  #--platform linux/amd64,linux/arm64
   --platform linux/arm64 \
   -t gru.ocir.io/<OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE>/homepage-80_platform_linux-arm64:latest \
   app/.

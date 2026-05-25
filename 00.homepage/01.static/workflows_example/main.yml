@@ -122,9 +122,9 @@ jobs:
 
       - name: Build
         run: |
+          # Plataformas disponíveis: linux/amd64, linux/arm64
           docker build \
           --push \
-          #--platform linux/amd64,linux/arm64
           --platform linux/arm64 \
           -f 00.homepage/01.static/Dockerfile \
           -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/homepage-80_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \

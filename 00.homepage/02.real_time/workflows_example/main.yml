@@ -182,10 +182,10 @@ jobs:
 
       - name: Build & Push – K8S Dashboard Backend
         run: |
+          # Plataformas disponíveis: linux/amd64, linux/arm64
           docker buildx build \
             --builder ${{ steps.buildx.outputs.name }} \
             --push \
-            #--platform linux/amd64,linux/arm64
             --platform linux/arm64 \
             -f 00.homepage/02.real_time/api_k8s_dashboard_backend/Dockerfile \
             -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/api-k8s-dashboard-backend_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
@@ -373,10 +373,10 @@ jobs:
 
       - name: Build & Push – K8S Dashboard Frontend
         run: |
+          # Plataformas disponíveis: linux/amd64, linux/arm64
           docker buildx build \
             --builder ${{ steps.buildx.outputs.name }} \
             --push \
-            #--platform linux/amd64,linux/arm64
             --platform linux/arm64 \
             -f 00.homepage/02.real_time/app_k8s_dashboard_frontend/Dockerfile \
             -t ${{ secrets.OCI_REGISTRY_URL }}/${{ secrets.OCI_REGISTRY_OBJECT_STORAGE_NAMESPACE }}/app-k8s-dashboard-frontend_platform_linux-arm64:${{ steps.version.outputs.VERSION }} \
