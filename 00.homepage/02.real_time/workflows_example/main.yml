@@ -132,6 +132,9 @@ jobs:
           echo "${{ secrets.OCI_CONFIG }}"   > ~/.oci/config
           echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/key.pem
 
+          # Corrige o path do key_file para o home real do runner
+          sed -i "s|key_file=.*|key_file=$HOME/.oci/key.pem|g" ~/.oci/config
+
           if [ -f "/home/ubuntu/bin/oci" ]; then
             echo "OCI CLI já instalado: $(/home/ubuntu/bin/oci --version)"
           else
@@ -312,6 +315,9 @@ jobs:
           mkdir -p ~/.oci
           echo "${{ secrets.OCI_CONFIG }}"   > ~/.oci/config
           echo "${{ secrets.OCI_KEY_FILE }}" > ~/.oci/key.pem
+
+          # Corrige o path do key_file para o home real do runner
+          sed -i "s|key_file=.*|key_file=$HOME/.oci/key.pem|g" ~/.oci/config
 
           if [ -f "/home/ubuntu/bin/oci" ]; then
             echo "OCI CLI já instalado: $(/home/ubuntu/bin/oci --version)"
