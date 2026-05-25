@@ -39,6 +39,18 @@
   - [Serviços internos ao cluster — port-forward](#serviços-internos-ao-cluster--acesso-via-kubectl)
 - [Acesso ao Cluster](#acesso-ao-cluster)
 - [CI/CD com GitHub Actions](#cicd-com-github-actions)
+  - [Self-Hosted Runner OCI ARM64](#self-hosted-runner-oci-arm64)
+    - [Por que usar self-hosted runner](#por-que-usar-self-hosted-runner)
+    - [Pré-requisitos do runner](#pré-requisitos-do-runner)
+    - [0. Instalar o Docker no Ubuntu ARM64](#0-instalar-o-docker-no-ubuntu-arm64)
+    - [0.7 Instalar o OCI CLI na instância](#07-instalar-o-oci-cli-na-instância)
+    - [1. Gerar o token do runner no GitHub](#1-gerar-o-token-do-runner-no-github)
+    - [2. Instalar o runner na instância OCI](#2-instalar-o-runner-na-instância-oci)
+    - [3. Instalar como serviço systemd](#3-instalar-como-serviço-systemd)
+    - [4. Atualizar o workflow do repositório](#4-atualizar-o-workflow-do-repositório)
+    - [5. Três runners na mesma instância](#5-três-runners-na-mesma-instância)
+    - [6. Qual instância do cluster usar](#6-qual-instância-do-cluster-usar)
+    - [7. Verificar o runner no GitHub](#7-verificar-o-runner-no-github)
 - [OCI Container Registry](#oci-container-registry)
 - [Destruindo a Infraestrutura](#destruindo-a-infraestrutura)
 - [Troubleshooting](#troubleshooting)
@@ -1562,6 +1574,605 @@ kubectl describe deployment nginx -n oci-devops
 
 ---
 
+## Self-Hosted Runner OCI ARM64
+
+### Por que usar self-hosted runner
+
+Repositórios que geram imagens Docker para arquitetura `linux/arm64` incorrem em custo no GitHub Actions porque runners ARM64 hospedados pelo GitHub são sempre cobrados (2× o preço do Linux x64, sem minutos gratuitos).
+
+Como a infraestrutura já roda em instâncias ARM64 da Oracle Cloud (OCI), o runner pode ser instalado diretamente nessas máquinas, eliminando o custo de build no GitHub Actions.
+
+| Situação | Custo mensal estimado |
+|---|---|
+| Runners ARM64 hospedados pelo GitHub | ~$25 |
+| Self-hosted runner na instância OCI | $0 |
+
+---
+
+### Pré-requisitos do runner
+
+- Instância OCI com arquitetura ARM64 (Ampere A1) acessível via SSH
+- Usuário com permissão `sudo`
+- Docker instalado na instância (veja seção abaixo)
+- OCI CLI instalado na instância (veja seção abaixo)
+- Acesso de administrador ao repositório GitHub
+
+---
+
+### 0. Instalar o Docker no Ubuntu ARM64
+
+Execute os comandos abaixo na instância OCI antes de qualquer outra etapa.
+
+#### 0.1 Remover versões antigas (se houver)
+
+```bash
+sudo apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+```
+
+#### 0.2 Instalar dependências e adicionar o repositório oficial
+
+```bash
+sudo apt-get update
+
+sudo apt-get install -y \
+  ca-certificates \
+  curl \
+  gnupg \
+  lsb-release
+
+# Adicionar a chave GPG oficial do Docker
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+# Adicionar o repositório
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+```
+
+#### 0.3 Instalar o Docker Engine
+
+```bash
+sudo apt-get update
+
+sudo apt-get install -y \
+  docker-ce \
+  docker-ce-cli \
+  containerd.io \
+  docker-buildx-plugin \
+  docker-compose-plugin
+```
+
+#### 0.4 Habilitar e iniciar o serviço
+
+```bash
+sudo systemctl enable docker
+sudo systemctl start docker
+
+# Verificar status
+sudo systemctl status docker
+```
+
+#### 0.5 Permitir uso sem `sudo` (opcional, mas recomendado para o runner)
+
+```bash
+sudo usermod -aG docker $USER
+
+# Aplicar o grupo sem precisar de logout/login
+newgrp docker
+```
+
+#### 0.6 Verificar a instalação
+
+```bash
+docker --version
+docker run hello-world
+```
+
+A saída esperada do `hello-world` confirma que o Docker está funcionando corretamente.
+
+---
+
+### 0.7 Instalar o OCI CLI na instância
+
+O OCI CLI é necessário para operações que interagem diretamente com a Oracle Cloud (listagem de recursos, autenticação, etc.). Instale-o antes de configurar o runner.
+
+#### 0.7.1 Preparar dependências Python
+
+O instalador do OCI CLI cria um virtualenv internamente. Sem essas dependências o processo falha com `FileNotFoundError: pip` ou erros de lock do apt:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3-pip python3-venv python3-dev
+```
+
+> ⚠️ **Atenção — lock do apt:** Se o comando `apt-get update` falhar com `Could not get lock /var/lib/apt/lists/lock`, outro processo está usando o apt (atualizações automáticas do Ubuntu). Aguarde alguns minutos e tente novamente, ou force a liberação:
+>
+> ```bash
+> sudo rm -f /var/lib/apt/lists/lock
+> sudo rm -f /var/cache/apt/archives/lock
+> sudo rm -f /var/lib/dpkg/lock-frontend
+> sudo apt-get update
+> ```
+
+#### 0.7.2 Instalar o OCI CLI
+
+```bash
+bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -- --accept-all-defaults
+```
+
+O instalador cria o ambiente em `~/lib/oracle-cli` e o binário em `~/bin/oci`.
+
+#### 0.7.3 Adicionar ao PATH
+
+```bash
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+#### 0.7.4 Verificar a instalação
+
+```bash
+oci --version
+```
+
+#### 0.7.5 Limpar instalação anterior quebrada (se necessário)
+
+Se uma tentativa anterior falhou (por exemplo, por lock do apt ou pip ausente), limpe os artefatos antes de reinstalar:
+
+```bash
+rm -rf ~/lib/oracle-cli
+rm -rf ~/bin/oci-cli-scripts
+rm -f ~/bin/oci
+```
+
+Em seguida, repita os passos 0.7.1 e 0.7.2.
+
+---
+
+### 1. Gerar o token do runner no GitHub
+
+Acesse a página de novo runner do repositório:
+
+```
+https://github.com/<USER>/<REPO>/settings/actions/runners/new
+```
+
+Selecione:
+- **Sistema operacional:** Linux
+- **Arquitetura:** ARM64
+
+O GitHub exibirá os comandos com o token já preenchido. Copie-os para usar nos passos seguintes.
+
+> ⚠️ **Atenção — validade do token:** O token de registro gerado pelo GitHub expira em **1 hora**. Todos os comandos do passo 2 (`curl`, `tar` e `./config.sh`) devem ser executados dentro desse prazo. O sintoma de token expirado é um erro `404 Not Found` ao rodar o `./config.sh` — nesse caso, retorne a esta página, gere um novo token e execute o `./config.sh` novamente.
+
+---
+
+### 2. Instalar o runner na instância OCI
+
+Conecte-se à instância via SSH e execute:
+
+```bash
+# Criar diretório do runner
+mkdir ~/actions-runner && cd ~/actions-runner
+
+# Baixar o pacote (use a URL gerada pelo GitHub no passo anterior)
+curl -o actions-runner-linux-arm64.tar.gz -L \
+  https://github.com/actions/runner/releases/download/vX.X.X/actions-runner-linux-arm64-X.X.X.tar.gz
+
+# Extrair
+tar xzf actions-runner-linux-arm64.tar.gz
+
+# Configurar (use a URL e o token gerados pelo GitHub)
+./config.sh \
+  --url https://github.com/<USER>/<REPO> \
+  --token <TOKEN_GERADO_PELO_GITHUB>
+```
+
+Durante a configuração serão feitas perguntas interativas (nome do runner, labels etc.). Os valores padrão funcionam bem — basta pressionar Enter.
+
+---
+
+### 3. Instalar como serviço systemd
+
+Para que o runner inicie automaticamente e sobreviva a reboots:
+
+```bash
+sudo ./svc.sh install
+sudo ./svc.sh start
+
+# Verificar status
+sudo ./svc.sh status
+```
+
+---
+
+### 4. Atualizar o workflow do repositório
+
+São três mudanças por job de build no arquivo `.github/workflows/main.yml`:
+
+#### 4.1 Trocar o `runs-on`
+
+```yaml
+# Antes — runner ARM64 pago no GitHub
+runs-on: ubuntu-latest
+
+# Depois — runner self-hosted na instância OCI (gratuito)
+runs-on: self-hosted
+```
+
+Se houver múltiplos runners self-hosted com finalidades diferentes, use labels para direcionar o job ao runner correto:
+
+```yaml
+runs-on: [self-hosted, linux, arm64]
+```
+
+#### 4.2 Remover o step do QEMU
+
+O QEMU é necessário apenas para emular ARM64 em máquinas x86. Na instância OCI ARM64 o build já é nativo, então o step pode ser removido inteiramente:
+
+```yaml
+# Remover este step — não é mais necessário
+- name: Set up QEMU
+  uses: docker/setup-qemu-action@v4
+```
+
+#### 4.3 Ajustar o `--platform` no buildx
+
+Como o Kubernetes do projeto roda inteiramente em ARM64, basta gerar a imagem para `linux/arm64`. Manter `linux/amd64` exigiria emulação (QEMU) e voltaria a gerar custo.
+
+```yaml
+# Antes — multi-arch via emulação QEMU
+--platform linux/amd64,linux/arm64
+
+# Depois — nativo ARM64, sem emulação
+--platform linux/arm64
+```
+
+#### 4.4 Jobs que precisam das mudanças
+
+O job `detect` não faz build Docker — pode permanecer em `ubuntu-latest` sem custo. Os demais devem ser atualizados:
+
+| Job | Trocar `runs-on` | Remover QEMU | Ajustar `--platform` |
+|---|:---:|:---:|:---:|
+| `detect` | ✗ (manter) | ✗ | ✗ |
+| `homepage` | ✓ | ✓ | ✓ |
+| `api_cslab_cardscontrol_backend` | ✓ | ✓ | ✓ |
+| `app_cslab_cardscontrol_frontend` | ✓ | ✓ | ✓ |
+| `api_cslab_web_backend` | ✓ | ✓ | ✓ |
+| `app_cslab_web_frontend` | ✓ | ✓ | ✓ |
+
+#### 4.5 Exemplo completo — job antes e depois
+
+**Antes (pago, com emulação):**
+
+```yaml
+app_cslab_web_frontend:
+  name: CSLab - WEB – Frontend (Angular)
+  runs-on: ubuntu-latest          # <- runner pago
+  timeout-minutes: 45
+  needs: [detect, api_cslab_web_backend]
+
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+
+    - name: Set up QEMU              # <- remover
+      uses: docker/setup-qemu-action@v4
+
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v4
+      with:
+        driver: docker-container
+
+    - name: Build & Push – CSLab Frontend
+      run: |
+        docker buildx build \
+          --platform linux/amd64,linux/arm64 \   # <- remover amd64
+          ...
+```
+
+**Depois (gratuito, build nativo):**
+
+```yaml
+app_cslab_web_frontend:
+  name: CSLab - WEB – Frontend (Angular)
+  runs-on: self-hosted             # <- instância OCI ARM64
+  timeout-minutes: 45
+  needs: [detect, api_cslab_web_backend]
+
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+
+    # Set up QEMU removido
+
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v4
+      with:
+        driver: docker-container
+
+    - name: Build & Push – CSLab Frontend
+      run: |
+        docker buildx build \
+          --platform linux/arm64 \               # <- apenas ARM64 nativo
+          ...
+```
+
+---
+
+### 5. Três runners na mesma instância
+
+Cada runner roda em sua própria pasta e é registrado como um serviço systemd independente. Os três ficam ativos simultaneamente, cada um monitorando seu repositório.
+
+> ⚠️ **Atenção — validade dos tokens:** Cada token expira em **1 hora**. Não gere todos os tokens de uma vez com antecedência — gere o token de cada repositório imediatamente antes de executar o `./config.sh` correspondente.
+
+#### 5.1 Instância escolhida
+
+```
+worker-0   147.15.55.142   7 GB RAM   VM.Standard.A1.Flex
+```
+
+```bash
+ssh ubuntu@147.15.55.142
+```
+
+#### 5.2 Runner — k8s-arm-oci-always-free
+
+> Gere o token em: `https://github.com/AdailSilva/k8s-arm-oci-always-free/settings/actions/runners/new`
+
+```bash
+mkdir ~/k8s-arm-oci-always-free-actions-runner && cd ~/k8s-arm-oci-always-free-actions-runner
+
+curl -o actions-runner-linux-arm64-2.334.0.tar.gz -L \
+  https://github.com/actions/runner/releases/download/v2.334.0/actions-runner-linux-arm64-2.334.0.tar.gz
+
+echo "f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4  actions-runner-linux-arm64-2.334.0.tar.gz" | shasum -a 256 -c
+
+tar xzf ./actions-runner-linux-arm64-2.334.0.tar.gz
+
+./config.sh --url https://github.com/AdailSilva/k8s-arm-oci-always-free --token <TOKEN>
+
+sudo ./svc.sh install
+sudo ./svc.sh start
+
+# Verificar status
+sudo ./svc.sh status
+sudo systemctl status actions.runner.AdailSilva-k8s-arm-oci-always-free.worker-0.service
+
+# Logs em tempo real
+journalctl -u actions.runner.AdailSilva-k8s-arm-oci-always-free.worker-0.service -f
+```
+
+#### 5.3 Runner — k8s-arm-oci-chirpstack
+
+> Gere o token em: `https://github.com/AdailSilva/k8s-arm-oci-chirpstack/settings/actions/runners/new`
+
+```bash
+mkdir ~/k8s-arm-oci-chirpstack-actions-runner && cd ~/k8s-arm-oci-chirpstack-actions-runner
+
+curl -o actions-runner-linux-arm64-2.334.0.tar.gz -L \
+  https://github.com/actions/runner/releases/download/v2.334.0/actions-runner-linux-arm64-2.334.0.tar.gz
+
+echo "f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4  actions-runner-linux-arm64-2.334.0.tar.gz" | shasum -a 256 -c
+
+tar xzf ./actions-runner-linux-arm64-2.334.0.tar.gz
+
+./config.sh --url https://github.com/AdailSilva/k8s-arm-oci-chirpstack --token <TOKEN>
+
+sudo ./svc.sh install
+sudo ./svc.sh start
+
+# Verificar status
+sudo ./svc.sh status
+sudo systemctl status actions.runner.AdailSilva-k8s-arm-oci-chirpstack.worker-0.service
+
+# Logs em tempo real
+journalctl -u actions.runner.AdailSilva-k8s-arm-oci-chirpstack.worker-0.service -f
+```
+
+#### 5.4 Runner — k8s-arm-oci-cslabweb
+
+> Gere o token em: `https://github.com/AdailSilva/k8s-arm-oci-cslabweb/settings/actions/runners/new`
+
+```bash
+mkdir ~/k8s-arm-oci-cslabweb-actions-runner && cd ~/k8s-arm-oci-cslabweb-actions-runner
+
+curl -o actions-runner-linux-arm64-2.334.0.tar.gz -L \
+  https://github.com/actions/runner/releases/download/v2.334.0/actions-runner-linux-arm64-2.334.0.tar.gz
+
+echo "f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4  actions-runner-linux-arm64-2.334.0.tar.gz" | shasum -a 256 -c
+
+tar xzf ./actions-runner-linux-arm64-2.334.0.tar.gz
+
+./config.sh --url https://github.com/AdailSilva/k8s-arm-oci-cslabweb --token <TOKEN>
+
+sudo ./svc.sh install
+sudo ./svc.sh start
+
+# Verificar status
+sudo ./svc.sh status
+sudo systemctl status actions.runner.AdailSilva-k8s-arm-oci-cslabweb.worker-0.service
+
+# Logs em tempo real
+journalctl -u actions.runner.AdailSilva-k8s-arm-oci-cslabweb.worker-0.service -f
+```
+
+#### 5.5 Verificar os três serviços
+
+Após instalar os três, confirme que estão todos ativos:
+
+```bash
+# Status via svc.sh (um de cada vez, a partir do diretório de cada runner)
+cd ~/k8s-arm-oci-always-free-actions-runner  && sudo ./svc.sh status
+cd ~/k8s-arm-oci-chirpstack-actions-runner   && sudo ./svc.sh status
+cd ~/k8s-arm-oci-cslabweb-actions-runner     && sudo ./svc.sh status
+
+# Status via systemctl (nomes exatos dos serviços)
+sudo systemctl status actions.runner.AdailSilva-k8s-arm-oci-always-free.worker-0.service
+sudo systemctl status actions.runner.AdailSilva-k8s-arm-oci-chirpstack.worker-0.service
+sudo systemctl status actions.runner.AdailSilva-k8s-arm-oci-cslabweb.worker-0.service
+
+# Listar todos os serviços de runner de uma vez
+sudo systemctl list-units 'actions.runner.*' --no-pager
+```
+
+Para acompanhar os logs em tempo real de cada serviço:
+
+```bash
+# k8s-arm-oci-always-free
+journalctl -u actions.runner.AdailSilva-k8s-arm-oci-always-free.worker-0.service -f
+
+# k8s-arm-oci-chirpstack
+journalctl -u actions.runner.AdailSilva-k8s-arm-oci-chirpstack.worker-0.service -f
+
+# k8s-arm-oci-cslabweb
+journalctl -u actions.runner.AdailSilva-k8s-arm-oci-cslabweb.worker-0.service -f
+```
+
+> Substitua `-f` por `-n 100` para ver apenas as últimas 100 linhas sem ficar monitorando em tempo real.
+
+Cada runner aparece separado na lista de runners do GitHub de cada repositório, com status **Idle** (aguardando jobs). Todos rodam em paralelo — o único limite é CPU e memória da instância durante builds simultâneos.
+
+Para diferenciar runners de repositórios distintos no workflow, atribua labels durante o `config.sh` (quando ele perguntar interativamente) e referencie no `runs-on`:
+
+```yaml
+# Direciona apenas para o runner com a label do repositório
+runs-on: [self-hosted, k8s-arm-oci-cslabweb]
+```
+
+---
+
+### 6. Qual instância do cluster usar
+
+**Apenas uma instância** precisa ter o runner instalado — não é necessário instalar em todos os nós do cluster.
+
+O runner realiza duas operações principais:
+
+```
+[Runner — instância escolhida]
+        |
+        |-- docker build + push --> OCI Registry
+        |
+        `-- kubectl apply --------> API Server K8s --> todos os nós do cluster
+```
+
+O `kubectl` se comunica com o **API Server do Kubernetes pela rede**, portanto não importa em qual nó físico o runner está instalado — ele enxerga e controla o cluster inteiro da mesma forma.
+
+#### Qual instância escolher
+
+A escolha depende dos recursos disponíveis em cada nó. Builds Docker de imagens Angular e Spring Boot são pesados — consomem bastante RAM e CPU durante a compilação.
+
+**Neste projeto:**
+
+| Nó | RAM | Recomendação |
+|---|---|---|
+| control plane | 3 GB | ✗ Não usar — RAM disputada com etcd, kube-apiserver etc. |
+| worker nodes | 7 GB cada | ✓ Instalar aqui |
+
+Usar o control plane com apenas 3 GB é arriscado por dois motivos: o build pode sofrer OOM (Out of Memory) e ser cancelado, e os processos do Kubernetes no control plane (etcd, kube-apiserver, kube-scheduler, kube-controller-manager) podem ser prejudicados, desestabilizando o cluster inteiro.
+
+O acesso ao cluster continua funcionando normalmente a partir de um worker — o `kubectl` se comunica com o API Server do control plane pela rede, sem nenhuma diferença.
+
+Instale o runner em um dos workers e copie o `kubeconfig` do control plane para ele:
+
+```bash
+# No control plane: exibir o kubeconfig
+cat ~/.kube/config
+
+# No worker escolhido para o runner: criar o arquivo
+mkdir -p ~/.kube
+vi ~/.kube/config   # colar o conteúdo copiado do control plane
+
+# Testar — deve listar todos os nós do cluster
+kubectl get nodes
+```
+
+#### Por que não instalar em todos os nós
+
+Instalar o runner em múltiplos nós só faz sentido para **balancear carga de builds** quando há muitos jobs rodando em paralelo. Para o volume atual dos repositórios, um único worker é suficiente e mais simples de manter.
+
+---
+
+### 7. Verificar o runner no GitHub
+
+Acesse:
+
+```
+https://github.com/<USER>/<REPO>/settings/actions/runners
+```
+
+O runner deve aparecer com o status **Idle** (aguardando jobs).
+
+#### Comandos úteis de manutenção
+
+```bash
+# Ver status do serviço
+sudo ./svc.sh status
+
+# Parar o runner
+sudo ./svc.sh stop
+
+# Remover o runner (desregistra do GitHub também)
+./config.sh remove --token <TOKEN>
+```
+
+#### Troubleshooting do runner
+
+**Erro: `no such file or directory` ao rodar o buildx**
+
+```
+ERROR: failed to initialize builder builder-XXXX: failed to connect to the docker API
+at unix:///var/run/docker.sock; check if the path is correct and if the daemon is running:
+dial unix /var/run/docker.sock: connect: no such file or directory
+```
+
+Causa: o Docker daemon não está rodando ou não foi instalado.
+
+```bash
+docker --version
+sudo systemctl status docker
+sudo systemctl start docker
+sudo systemctl enable docker
+ls -la /var/run/docker.sock
+```
+
+Se o Docker não estiver instalado, siga a **seção 0** acima.
+
+---
+
+**Erro: `permission denied` ao rodar o buildx**
+
+```
+ERROR: failed to initialize builder builder-XXXX: permission denied while trying to
+connect to the docker API at unix:///var/run/docker.sock
+```
+
+Causa: o usuário que executa o runner não tem permissão para acessar o socket do Docker.
+
+```bash
+# Adicionar o usuário ubuntu ao grupo docker
+sudo usermod -aG docker $USER
+
+# Reiniciar os três serviços para aplicar a nova permissão de grupo
+sudo systemctl restart actions.runner.AdailSilva-k8s-arm-oci-always-free.worker-0.service
+sudo systemctl restart actions.runner.AdailSilva-k8s-arm-oci-chirpstack.worker-0.service
+sudo systemctl restart actions.runner.AdailSilva-k8s-arm-oci-cslabweb.worker-0.service
+
+# Confirmar que os três estão ativos
+sudo systemctl list-units 'actions.runner.*' --no-pager
+```
+
+> ⚠️ **Por que reiniciar é obrigatório:** A adição ao grupo docker só é aplicada em novas sessões. O `newgrp docker` funciona para sessões interativas do terminal, mas **não afeta serviços systemd já em execução** — apenas o restart do serviço força o processo a herdar o novo grupo.
+
+---
+
 ## OCI Container Registry
 
 O módulo `oci-infra_ci_cd` cria repositórios privados no **OCI Container Registry** para armazenar imagens Docker **ARM64** do cluster:
@@ -1904,12 +2515,6 @@ metadata:
     nginx.ingress.kubernetes.io/hsts: "true"
     nginx.ingress.kubernetes.io/hsts-max-age: "63072000"
     nginx.ingress.kubernetes.io/hsts-include-subdomains: "true"
-    # nginx.ingress.kubernetes.io/enable-cors: "true"
-    # nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.adailsilva.com.br"
-    # nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"
-    # nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, Accept, Origin, Cache-Control"
-    # nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
-    # nginx.ingress.kubernetes.io/cors-max-age: "3600"
   labels:
     app: <nome-do-servico>-ingress
 spec:
