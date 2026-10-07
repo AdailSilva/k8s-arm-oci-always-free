@@ -8,5 +8,5 @@ RUN javac UdpHealthCheckServer.java
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /src/UdpHealthCheckServer.class .
-#CMD ["java", "UdpHealthCheckServer", "1700"]
-CMD ["java", "UdpHealthCheckServer", "1710"]
+CMD ["java", "UdpHealthCheckServer", "1700"]
+#CMD ["java", "UdpHealthCheckServer", "1710"]

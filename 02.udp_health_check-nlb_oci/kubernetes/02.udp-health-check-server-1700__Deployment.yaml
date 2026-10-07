@@ -31,5 +31,23 @@ spec:
             - containerPort: 1700
               hostPort: 1700
               protocol: UDP
+          # Requests explicitos (07/10/2026). Sem resources o pod era BestEffort:
+          # sob disputa de CPU (builds do runner no worker-0, boot de JVM dos
+          # backends) ele recebia a menor fatia do no e podia demorar a responder
+          # o health check UDP -- o NLB entao marca o no como unhealthy e derruba
+          # o trafego de quem esta saudavel. Valores pequenos: o servidor so
+          # devolve um datagrama por sonda.
+          # A JVM sem limite de memoria dimensiona o heap pela RAM do no (7Gi);
+          # com o limite abaixo ela passa a enxergar 192Mi e o heap fica em ~64Mi (folga para metaspace e threads).
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=33 -XX:+UseSerialGC -Xss256k -XX:TieredStopAtLevel=1"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+            limits:
+              memory: "192Mi"
+              cpu: "100m"
       imagePullSecrets:
         - name: oci-registry-secret

@@ -438,7 +438,7 @@ spec:
       targetPort: 8081
       protocol: TCP
       nodePort: 32081
-# --- SpringBoot Apps (platform arm64) CSLab-CardsControl
+# --- SpringBoot Apps (platform arm64) CSLab-CardsControl - Organizar para inclusão dos projetos: CSLab-WEB e CSLab-BackOffice.
     - name: proxied-tcp-5445
       port: 5445
       targetPort: 5445
