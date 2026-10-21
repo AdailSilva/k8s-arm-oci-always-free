@@ -512,14 +512,6 @@ spec:
 #   # # --- SpringBoot Apps (platform arm64)
 #   # 8081: "adailsilva-apps/spring-boot-app-arm64-service:8081"
 
-#   # # --- SpringBoot Apps (platform arm64) CSLab-CardsControl
-#   # 5445: "cardscontrol/cardscontrol-postgresql-service:5445"
-#   # 8083: "cardscontrol/cardscontrol-backend-service:8083"
-
-#   # # --- SpringBoot Apps (platform arm64) DAG-StockControl
-#   # 5446: "stockcontrol/stockcontrol-postgresql-service:5446"
-#   # 8084: "stockcontrol/stockcontrol-backend-service:8084"
-
 ---
 
 apiVersion: v1
